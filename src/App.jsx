@@ -149,6 +149,7 @@ const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+  /* ── Onboarding ── */
   .onboard {
     height: 100vh; display: flex; align-items: center; justify-content: center;
     background: #0f0e0e; font-family: 'Syne', sans-serif;
@@ -182,14 +183,75 @@ const CSS = `
   .onboard-btn:hover:not(:disabled) { background: #f0bc6a; }
   .onboard-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  /* Upload screen */
+  /* ── Back button (universal) ── */
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; background: transparent; border: 1px solid #1e1c1a;
+    color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif;
+    font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .back-btn:hover { border-color: #504840; color: #e8dfd4; }
+
+  /* ── Edit name modal ── */
+  .edit-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; font-family: 'Syne', sans-serif;
+  }
+  .edit-card {
+    background: #131110; border: 1px solid #1e1c1a; border-radius: 12px;
+    padding: 28px; width: 360px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .edit-title { font-size: 16px; font-weight: 800; color: #e8dfd4; }
+  .edit-field { display: flex; flex-direction: column; gap: 7px; }
+  .edit-label { font-size: 10px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .09em; }
+  .edit-input {
+    background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4;
+    border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 13px;
+    padding: 10px 13px; outline: none; transition: border-color .15s; width: 100%;
+  }
+  .edit-input:focus { border-color: #e8a84c; }
+  .edit-actions { display: flex; gap: 8px; }
+  .edit-cancel {
+    flex: 1; padding: 9px; background: transparent; border: 1px solid #1e1c1a;
+    color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif;
+    font-size: 12px; cursor: pointer; transition: all .15s;
+  }
+  .edit-cancel:hover { border-color: #504840; color: #e8dfd4; }
+  .edit-save {
+    flex: 2; padding: 9px; background: #e8a84c; border: none; color: #111;
+    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px;
+    font-weight: 800; cursor: pointer; transition: background .15s;
+  }
+  .edit-save:hover:not(:disabled) { background: #f0bc6a; }
+  .edit-save:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── Upload screen ── */
   .upload-screen {
     height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    background: #0f0e0e; font-family: 'Syne', sans-serif; gap: 12px;
+    background: #0f0e0e; font-family: 'Syne', sans-serif;
     transition: background .2s;
   }
   .upload-screen.drag-over { background: #131110; }
+  .upload-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid #1a1917; flex-shrink: 0;
+  }
+  .upload-topbar-name {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #504840;
+  }
+  .upload-topbar-name span { color: #e8a84c; font-weight: 700; }
+  .edit-name-btn {
+    padding: 3px 8px; background: transparent; border: 1px solid #1e1c1a;
+    color: #403830; border-radius: 4px; font-family: 'Syne', sans-serif;
+    font-size: 10px; cursor: pointer; transition: all .15s;
+  }
+  .edit-name-btn:hover { border-color: #504840; color: #e8dfd4; }
+  .upload-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+  }
   .upload-drop-zone {
     display: flex; flex-direction: column; align-items: center; gap: 10px;
     border: 2px dashed #1e1c1a; border-radius: 16px; padding: 48px 60px;
@@ -199,24 +261,18 @@ const CSS = `
   .upload-icon { font-size: 48px; line-height: 1; }
   .upload-title { font-size: 22px; font-weight: 800; color: #e8dfd4; }
   .upload-sub { font-size: 12px; color: #403830; }
-  .upload-who { font-size: 13px; color: #504840; }
-  .upload-who span { color: #e8a84c; font-weight: 700; }
   .upload-divider { font-size: 11px; color: #2c2820; }
-  .upload-btns { display: flex; gap: 10px; margin-top: 4px; }
+  .upload-btns { display: flex; gap: 10px; }
   .upload-btn {
     padding: 8px 18px; border-radius: 7px; font-family: 'Syne', sans-serif;
     font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
   }
-  .upload-btn-files {
-    background: #e8a84c; border: none; color: #111;
-  }
+  .upload-btn-files { background: #e8a84c; border: none; color: #111; }
   .upload-btn-files:hover { background: #f0bc6a; }
-  .upload-btn-folder {
-    background: transparent; border: 1px solid #2a2825; color: #504840;
-  }
+  .upload-btn-folder { background: transparent; border: 1px solid #2a2825; color: #504840; }
   .upload-btn-folder:hover { border-color: #e8a84c; color: #e8a84c; }
 
-  /* App */
+  /* ── App shell ── */
   .app {
     font-family: 'Syne', sans-serif; background: #0f0e0e;
     color: #e8dfd4; height: 100vh; overflow: hidden; display: flex; flex-direction: column;
@@ -234,10 +290,14 @@ const CSS = `
   .progress-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
   .hdr-right { display: flex; gap: 7px; align-items: center; }
   .photographer-tag {
+    display: flex; align-items: center; gap: 5px;
     font-size: 11px; color: #504840; padding: 4px 10px;
-    border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap;
+    border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap; cursor: pointer;
+    transition: all .15s;
   }
+  .photographer-tag:hover { border-color: #504840; color: #e8dfd4; }
   .photographer-tag span { color: #e8a84c; font-weight: 700; }
+  .photographer-tag-edit { font-size: 9px; color: #2c2820; }
   .dl-btn {
     padding: 5px 14px; background: #e8a84c; border: none; color: #111;
     border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px;
@@ -248,7 +308,7 @@ const CSS = `
 
   .body { flex: 1; min-height: 0; display: flex; overflow: hidden; }
   .img-panel { width: 52%; display: flex; flex-direction: column; border-right: 1px solid #1a1917; overflow: hidden; }
-  .img-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #080707; overflow: hidden; position: relative; }
+  .img-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #080707; overflow: hidden; }
   .main-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
   .img-footer { padding: 7px 13px; border-top: 1px solid #1a1917; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .img-name { font-size: 10px; color: #2c2820; font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
@@ -334,7 +394,7 @@ const CSS = `
   .preview-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #605040; line-height: 1.8; word-break: break-all; }
   .preview-text .trigger { font-weight: 600; }
 
-  /* Thumbnail strip */
+  /* ── Thumb strip ── */
   .thumb-strip {
     display: flex; gap: 4px; padding: 6px 10px;
     background: #080707; border-top: 1px solid #1a1917;
@@ -364,8 +424,6 @@ const CSS = `
     opacity: 0; transition: opacity .15s; line-height: 1; padding: 0;
   }
   .thumb-wrap:hover .thumb-delete { opacity: 1; }
-
-  /* Add more strip button */
   .thumb-add {
     flex-shrink: 0; width: 50px; height: 50px; border-radius: 4px;
     border: 1px dashed #2a2825; background: transparent; color: #403830;
@@ -374,7 +432,7 @@ const CSS = `
   }
   .thumb-add:hover { border-color: #e8a84c; color: #e8a84c; }
 
-  /* Modal */
+  /* ── Modals ── */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.88);
     display: flex; align-items: center; justify-content: center;
@@ -392,7 +450,7 @@ const CSS = `
   .modal-stat { display: flex; justify-content: space-between; font-size: 12px; }
   .modal-stat-label { color: #504840; }
   .modal-stat-value { color: #e8dfd4; font-weight: 700; }
-  .steps { display: flex; flex-direction: column; gap: 0; }
+  .steps { display: flex; flex-direction: column; }
   .step { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #1a1917; }
   .step:last-child { border-bottom: none; }
   .step-num {
@@ -428,7 +486,7 @@ const CSS = `
   }
   .drive-btn:hover { background: #1e6aff11; border-color: #6aa3ff; }
 
-  /* Delete confirm */
+  /* ── Delete confirm ── */
   .delete-confirm-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.88);
     display: flex; align-items: center; justify-content: center;
@@ -455,7 +513,7 @@ const CSS = `
   }
   .delete-yes:hover { background: rgba(224,112,112,.25); }
 
-  /* Done screen */
+  /* ── Done screen ── */
   .done-screen {
     height: 100vh; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -471,6 +529,7 @@ const CSS = `
   }
   .done-reminder-title { font-size: 11px; font-weight: 700; color: #e8a84c; text-transform: uppercase; letter-spacing: .08em; }
   .done-reminder-text { font-size: 12px; color: #504840; line-height: 1.7; }
+  .done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
   .done-drive-btn {
     padding: 12px 24px; background: transparent;
     border: 1px solid #1e6aff55; color: #6aa3ff;
@@ -478,6 +537,13 @@ const CSS = `
     font-weight: 700; cursor: pointer; transition: all .15s;
   }
   .done-drive-btn:hover { background: #1e6aff11; border-color: #6aa3ff; }
+  .done-back-btn {
+    padding: 12px 24px; background: transparent;
+    border: 1px solid #1e1c1a; color: #504840;
+    border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px;
+    cursor: pointer; transition: all .15s;
+  }
+  .done-back-btn:hover { border-color: #504840; color: #e8dfd4; }
 `;
 
 function ChipSection({ section, state, update, accent }) {
@@ -624,6 +690,29 @@ function DownloadModal({ images, caps, photographerName, onClose, onDone }) {
   );
 }
 
+/* ── Edit Name Modal ── */
+function EditNameModal({ current, onSave, onClose }) {
+  const [name, setName] = useState(current);
+  return (
+    <div className="edit-overlay">
+      <div className="edit-card">
+        <div className="edit-title">Edit your name</div>
+        <div className="edit-field">
+          <label className="edit-label">Full name</label>
+          <input className="edit-input" value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && name.trim() && onSave(name.trim())}
+            autoFocus />
+        </div>
+        <div className="edit-actions">
+          <button className="edit-cancel" onClick={onClose}>Cancel</button>
+          <button className="edit-save" disabled={!name.trim()} onClick={() => onSave(name.trim())}>Save name</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [screen, setScreen] = useState("onboard");
   const [photographerName, setPhotographerName] = useState("");
@@ -634,6 +723,7 @@ export default function App() {
   const [drag, setDrag] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showEditName, setShowEditName] = useState(false);
   const fileRef = useRef();
   const folderRef = useRef();
   const addMoreRef = useRef();
@@ -650,12 +740,8 @@ export default function App() {
     setScreen("caption");
   }, []);
 
-  /* Delete an image and its caption, adjust idx */
   const deleteImage = (i) => {
-    setImages(prev => {
-      const next = prev.filter((_, j) => j !== i);
-      return next;
-    });
+    setImages(prev => prev.filter((_, j) => j !== i));
     setCaps(prev => {
       const next = {};
       Object.entries(prev).forEach(([k, v]) => {
@@ -683,7 +769,7 @@ export default function App() {
   const pct = images.length ? (doneCount / images.length) * 100 : 0;
   const ds = DATASETS[state._dataset];
 
-  /* Onboarding */
+  /* ── Onboarding ── */
   if (screen === "onboard") return (
     <>
       <style>{CSS}</style>
@@ -712,7 +798,7 @@ export default function App() {
     </>
   );
 
-  /* Upload screen */
+  /* ── Upload screen ── */
   if (screen === "upload") return (
     <>
       <style>{CSS}</style>
@@ -722,34 +808,45 @@ export default function App() {
         onDragLeave={() => setDrag(false)}
         onDrop={e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
       >
-        {/* Hidden inputs */}
         <input ref={fileRef} type="file" multiple accept="image/*"
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
         <input ref={folderRef} type="file" multiple accept="image/*" webkitdirectory=""
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
 
-        <div className="upload-drop-zone" onClick={() => fileRef.current.click()}>
-          <div className="upload-icon">🗂</div>
-          <div className="upload-who">Captioning as <span>{photographerName}</span></div>
-          <div className="upload-title">Drop your images here</div>
-          <div className="upload-sub">Street · Architecture · Portraiture · Markets · Landscape</div>
+        {/* Top bar with back + name */}
+        <div className="upload-topbar">
+          <button className="back-btn" onClick={() => setScreen("onboard")}>← Back</button>
+          <div className="upload-topbar-name">
+            Uploading as <span>{photographerName}</span>
+            <button className="edit-name-btn" onClick={() => setShowEditName(true)}>edit</button>
+          </div>
         </div>
 
-        <div className="upload-divider">or choose how to add</div>
-
-        <div className="upload-btns">
-          <button className="upload-btn upload-btn-files" onClick={() => fileRef.current.click()}>
-            🖼 Select images
-          </button>
-          <button className="upload-btn upload-btn-folder" onClick={e => { e.stopPropagation(); folderRef.current.click(); }}>
-            📁 Upload a folder
-          </button>
+        <div className="upload-body">
+          <div className="upload-drop-zone" onClick={() => fileRef.current.click()}>
+            <div className="upload-icon">🗂</div>
+            <div className="upload-title">Drop your images here</div>
+            <div className="upload-sub">Street · Architecture · Portraiture · Markets · Landscape</div>
+          </div>
+          <div className="upload-divider">or choose how to add</div>
+          <div className="upload-btns">
+            <button className="upload-btn upload-btn-files" onClick={() => fileRef.current.click()}>🖼 Select images</button>
+            <button className="upload-btn upload-btn-folder" onClick={e => { e.stopPropagation(); folderRef.current.click(); }}>📁 Upload a folder</button>
+          </div>
         </div>
+
+        {showEditName && (
+          <EditNameModal
+            current={photographerName}
+            onSave={n => { setPhotographerName(n); setShowEditName(false); }}
+            onClose={() => setShowEditName(false)}
+          />
+        )}
       </div>
     </>
   );
 
-  /* Done screen */
+  /* ── Done screen ── */
   if (screen === "done") return (
     <>
       <style>{CSS}</style>
@@ -761,27 +858,29 @@ export default function App() {
           <div className="done-reminder-title">📁 Upload your ZIP here</div>
           <div className="done-reminder-text">Open the Drive folder → click <strong style={{ color: "#e8dfd4" }}>+ New → File upload</strong> → select your ZIP. Done!</div>
         </div>
-        <button className="done-drive-btn" onClick={() => window.open(DRIVE_FOLDER_URL, "_blank")}>
-          📁 Open Google Drive folder →
-        </button>
+        <div className="done-actions">
+          <button className="done-drive-btn" onClick={() => window.open(DRIVE_FOLDER_URL, "_blank")}>📁 Open Google Drive →</button>
+          <button className="done-back-btn" onClick={() => setScreen("caption")}>← Back to captions</button>
+        </div>
       </div>
     </>
   );
 
-  /* Caption screen */
+  /* ── Caption screen ── */
   return (
     <>
       <style>{CSS}</style>
       <div className="app">
-
-        {/* Hidden inputs for adding more */}
         <input ref={addMoreRef} type="file" multiple accept="image/*"
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
         <input ref={addMoreFolderRef} type="file" multiple accept="image/*" webkitdirectory=""
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
 
         <header className="header">
-          <span className="logo">LoRA <span>Captioner</span></span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button className="back-btn" onClick={() => setScreen("upload")}>← Add more</button>
+            <span className="logo">LoRA <span>Captioner</span></span>
+          </div>
           <div className="hdr-mid">
             <div className="progress-bar-bg">
               <div className="progress-bar-fill" style={{ width: `${pct}%`, background: accent }} />
@@ -789,14 +888,16 @@ export default function App() {
             <span className="progress-text">{doneCount} / {images.length} captioned</span>
           </div>
           <div className="hdr-right">
-            <span className="photographer-tag">📷 <span>{photographerName}</span></span>
+            {/* Clicking the name tag opens edit modal */}
+            <div className="photographer-tag" onClick={() => setShowEditName(true)} title="Click to edit name">
+              📷 <span>{photographerName}</span>
+              <span className="photographer-tag-edit">✎</span>
+            </div>
             <button className="dl-btn" onClick={() => setShowModal(true)}>Download ZIP ↓</button>
           </div>
         </header>
 
         <div className="body">
-
-          {/* Image panel */}
           <div className="img-panel">
             <div className="img-wrap">
               <img src={images[idx].url} alt={images[idx].name} className="main-img" />
@@ -814,7 +915,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Form panel */}
           <div className="form-panel">
             <div className="ds-bar">
               <span className="ds-bar-label">Type:</span>
@@ -843,7 +943,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Thumbnail strip */}
         <div className="thumb-strip">
           {images.map((img, i) => (
             <div key={img.name + i} className="thumb-wrap">
@@ -853,15 +952,13 @@ export default function App() {
                 <img src={img.url} alt="" />
               </button>
               {isDone(caps[i]) && <span className="done-dot">✓</span>}
-              <button className="thumb-delete" onClick={() => setDeleteTarget(i)} title="Remove image">✕</button>
+              <button className="thumb-delete" onClick={() => setDeleteTarget(i)}>✕</button>
             </div>
           ))}
-          {/* Add more buttons */}
           <button className="thumb-add" title="Add more images" onClick={() => addMoreRef.current.click()}>🖼</button>
           <button className="thumb-add" title="Add a folder" onClick={() => addMoreFolderRef.current.click()}>📁</button>
         </div>
 
-        {/* Download modal */}
         {showModal && (
           <DownloadModal
             images={images} caps={caps} photographerName={photographerName}
@@ -870,13 +967,12 @@ export default function App() {
           />
         )}
 
-        {/* Delete confirmation */}
         {deleteTarget !== null && (
           <div className="delete-confirm-overlay">
             <div className="delete-confirm">
               <div className="delete-confirm-title">Remove this image?</div>
               <div className="delete-confirm-sub">
-                <strong style={{ color: "#e8dfd4" }}>{images[deleteTarget]?.name}</strong> and its caption will be removed from your submission. This cannot be undone.
+                <strong style={{ color: "#e8dfd4" }}>{images[deleteTarget]?.name}</strong> and its caption will be removed. This cannot be undone.
               </div>
               <div className="delete-confirm-actions">
                 <button className="delete-no" onClick={() => setDeleteTarget(null)}>Keep it</button>
@@ -886,6 +982,13 @@ export default function App() {
           </div>
         )}
 
+        {showEditName && (
+          <EditNameModal
+            current={photographerName}
+            onSave={n => { setPhotographerName(n); setShowEditName(false); }}
+            onClose={() => setShowEditName(false)}
+          />
+        )}
       </div>
     </>
   );
