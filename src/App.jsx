@@ -6,7 +6,7 @@ const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1PPUr-BeT1e4Krp
    ACCESS CODE — Change this before deploying
    Share this code privately with photographers
 ──────────────────────────────────────── */
-const ACCESS_CODE = "ZAZI2025";
+const ACCESS_CODE = "ZAZI2025"; // PIN protected
 
 /* ─────────────────────────────────────────
    LOCATION DATA — Country → City → Region
