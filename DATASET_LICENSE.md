@@ -1,4 +1,4 @@
-# DATASET LICENSE — LoRA Captioner Dataset
+# DATASET LICENSE — Zazi Captioner Dataset
 ### Based on OpenRAIL-M with Extended Personal Data & Image Protection Provisions
 
 **Version 1.0 — 2024**
@@ -8,7 +8,7 @@
 
 ## PREAMBLE
 
-This license governs the use of any dataset produced using the LoRA Captioner tool, including all images, caption files, metadata, and any derivative works produced from them ("the Dataset").
+This license governs the use of any dataset produced using the Zazi Captioner tool, including all images, caption files, metadata, and any derivative works produced from them ("the Dataset").
 
 This license exists to:
 - Protect the personal data and likeness of individuals appearing in submitted images
@@ -101,7 +101,7 @@ Any party granted access to this Dataset must:
 
 ## PART 5 — TOOL INPUT DATA — ZERO RETENTION DECLARATION
 
-The LoRA Captioner tool that produced this Dataset is designed with the following privacy properties:
+The Zazi Captioner tool that produced this Dataset is designed with the following privacy properties:
 
 - **No images are uploaded to any server** at any time during the captioning process
 - **All processing occurs locally** in the photographer's browser
@@ -117,10 +117,10 @@ This declaration applies to the tool as distributed. If you deploy a modified ve
 Any publication, model card, research paper, or public release that uses this Dataset or a model trained on it must include the following attribution:
 
 ```
-Dataset produced using the LoRA Captioner tool.
+Dataset produced using the Zazi Captioner tool.
 © [Your Name / Organisation], [Year].
 Contributing photographers retain all rights to their original images.
-Licensed under the LoRA Captioner Dataset License v1.0.
+Licensed under the Zazi Captioner Dataset License v1.0.
 ```
 
 ---

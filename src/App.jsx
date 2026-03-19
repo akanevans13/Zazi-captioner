@@ -158,8 +158,9 @@ const CSS = `
     background: #131110; border: 1px solid #1e1c1a; border-radius: 14px;
     padding: 40px 36px; width: 420px; display: flex; flex-direction: column; gap: 20px;
   }
-  .onboard-logo { font-size: 22px; font-weight: 800; color: #e8dfd4; }
+  .onboard-logo { font-size: 22px; font-weight: 800; color: #e8dfd4; letter-spacing: -.02em; }
   .onboard-logo span { color: #e8a84c; }
+  .onboard-logo-sub { font-size: 11px; color: #403830; margin-top: -14px; letter-spacing: .08em; text-transform: uppercase; }
   .onboard-sub { font-size: 13px; color: #504840; line-height: 1.7; }
   .onboard-field { display: flex; flex-direction: column; gap: 7px; }
   .onboard-label { font-size: 10px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .09em; }
@@ -183,7 +184,7 @@ const CSS = `
   .onboard-btn:hover:not(:disabled) { background: #f0bc6a; }
   .onboard-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  /* ── Back button (universal) ── */
+  /* ── Back button ── */
   .back-btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px; background: transparent; border: 1px solid #1e1c1a;
@@ -229,18 +230,14 @@ const CSS = `
   /* ── Upload screen ── */
   .upload-screen {
     height: 100vh; display: flex; flex-direction: column;
-    background: #0f0e0e; font-family: 'Syne', sans-serif;
-    transition: background .2s;
+    background: #0f0e0e; font-family: 'Syne', sans-serif; transition: background .2s;
   }
   .upload-screen.drag-over { background: #131110; }
   .upload-topbar {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 16px; border-bottom: 1px solid #1a1917; flex-shrink: 0;
   }
-  .upload-topbar-name {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; color: #504840;
-  }
+  .upload-topbar-name { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #504840; }
   .upload-topbar-name span { color: #e8a84c; font-weight: 700; }
   .edit-name-btn {
     padding: 3px 8px; background: transparent; border: 1px solid #1e1c1a;
@@ -292,8 +289,8 @@ const CSS = `
   .photographer-tag {
     display: flex; align-items: center; gap: 5px;
     font-size: 11px; color: #504840; padding: 4px 10px;
-    border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap; cursor: pointer;
-    transition: all .15s;
+    border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap;
+    cursor: pointer; transition: all .15s;
   }
   .photographer-tag:hover { border-color: #504840; color: #e8dfd4; }
   .photographer-tag span { color: #e8a84c; font-weight: 700; }
@@ -647,7 +644,7 @@ function DownloadModal({ images, caps, photographerName, onClose, onDone }) {
       const blob = await zip.generateAsync({ type: "blob" });
       Object.assign(document.createElement("a"), {
         href: URL.createObjectURL(blob),
-        download: `${photographerName.replace(/\s+/g, "_")}_lora_dataset.zip`
+        download: `${photographerName.replace(/\s+/g, "_")}_zazi_dataset.zip`
       }).click();
       setDownloaded(true);
     } finally { setBusy(false); }
@@ -690,7 +687,6 @@ function DownloadModal({ images, caps, photographerName, onClose, onDone }) {
   );
 }
 
-/* ── Edit Name Modal ── */
 function EditNameModal({ current, onSave, onClose }) {
   const [name, setName] = useState(current);
   return (
@@ -775,7 +771,8 @@ export default function App() {
       <style>{CSS}</style>
       <div className="onboard">
         <div className="onboard-card">
-          <div className="onboard-logo">LoRA <span>Captioner</span></div>
+          <div className="onboard-logo">Zazi <span>Captioner</span></div>
+          <div className="onboard-logo-sub">Know yourself · Know your image</div>
           <div className="onboard-sub">Welcome. Enter your name before starting — this labels your submission so we can keep everything organised.</div>
           <div className="onboard-field">
             <label className="onboard-label">Your full name <span style={{ color: "#e8a84c" }}>*</span></label>
@@ -812,8 +809,6 @@ export default function App() {
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
         <input ref={folderRef} type="file" multiple accept="image/*" webkitdirectory=""
           style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
-
-        {/* Top bar with back + name */}
         <div className="upload-topbar">
           <button className="back-btn" onClick={() => setScreen("onboard")}>← Back</button>
           <div className="upload-topbar-name">
@@ -821,7 +816,6 @@ export default function App() {
             <button className="edit-name-btn" onClick={() => setShowEditName(true)}>edit</button>
           </div>
         </div>
-
         <div className="upload-body">
           <div className="upload-drop-zone" onClick={() => fileRef.current.click()}>
             <div className="upload-icon">🗂</div>
@@ -834,7 +828,6 @@ export default function App() {
             <button className="upload-btn upload-btn-folder" onClick={e => { e.stopPropagation(); folderRef.current.click(); }}>📁 Upload a folder</button>
           </div>
         </div>
-
         {showEditName && (
           <EditNameModal
             current={photographerName}
@@ -852,7 +845,7 @@ export default function App() {
       <style>{CSS}</style>
       <div className="done-screen">
         <div className="done-icon">🎉</div>
-        <div className="done-title">You're all done, {photographerName.split(" ")[0]}!</div>
+        <div className="done-title">Siyabonga, {photographerName.split(" ")[0]}!</div>
         <div className="done-sub">Your ZIP has been downloaded. Upload it to the shared Google Drive folder to complete your submission.</div>
         <div className="done-reminder">
           <div className="done-reminder-title">📁 Upload your ZIP here</div>
@@ -879,7 +872,7 @@ export default function App() {
         <header className="header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button className="back-btn" onClick={() => setScreen("upload")}>← Add more</button>
-            <span className="logo">LoRA <span>Captioner</span></span>
+            <span className="logo">Zazi <span>Captioner</span></span>
           </div>
           <div className="hdr-mid">
             <div className="progress-bar-bg">
@@ -888,7 +881,6 @@ export default function App() {
             <span className="progress-text">{doneCount} / {images.length} captioned</span>
           </div>
           <div className="hdr-right">
-            {/* Clicking the name tag opens edit modal */}
             <div className="photographer-tag" onClick={() => setShowEditName(true)} title="Click to edit name">
               📷 <span>{photographerName}</span>
               <span className="photographer-tag-edit">✎</span>
