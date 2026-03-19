@@ -1169,7 +1169,7 @@ export default function App() {
             <input
               className="onboard-input"
               style={{ textAlign: "center", letterSpacing: ".2em", textTransform: "uppercase", fontSize: 16, borderColor: pinError ? "#e07070" : undefined }}
-              placeholder="e.g. ZAZI2025"
+              placeholder="Enter access code…"
               value={pinValue}
               maxLength={20}
               autoFocus
