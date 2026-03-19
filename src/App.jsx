@@ -1153,51 +1153,45 @@ export default function App() {
 
   const doneCount = images.filter((_, i) => isDone(caps[i], locStates[i])).length;
   const pct = images.length ? (doneCount / images.length) * 100 : 0;
-  if (screen === "pin") return (
+    if (screen === "pin") return (
     <>
       <style>{CSS}</style>
-      <div className="pin-screen">
-        <div className="pin-card">
-          <div className="pin-logo">Zazi <span>Captioner</span></div>
-          <div className="pin-logo-sub">Know yourself · Know your image</div>
-          <div className="pin-sub">
+      <div className="onboard">
+        <div className="onboard-card">
+          <div className="onboard-logo">Zazi <span>Captioner</span></div>
+          <div className="onboard-logo-sub">Know yourself · Know your image</div>
+          <div className="onboard-sub">
             This tool is restricted to invited photographers only.
             Enter the access code you received to continue.
           </div>
-          <div className="pin-input-wrap">
+          <div className="onboard-field">
+            <label className="onboard-label">Access Code</label>
             <input
-              className={`pin-input${pinError ? " error" : ""}`}
-              placeholder="Access code"
+              className="onboard-input"
+              style={{ textAlign: "center", letterSpacing: ".2em", textTransform: "uppercase", fontSize: 16, borderColor: pinError ? "#e07070" : undefined }}
+              placeholder="e.g. ZAZI2025"
               value={pinValue}
               maxLength={20}
+              autoFocus
               onChange={e => { setPinValue(e.target.value.toUpperCase()); setPinError(false); }}
               onKeyDown={e => {
                 if (e.key === "Enter") {
-                  if (pinValue.trim() === ACCESS_CODE) {
-                    setScreen("onboard");
-                  } else {
-                    setPinError(true);
-                    setPinValue("");
-                  }
+                  if (pinValue.trim() === ACCESS_CODE) setScreen("onboard");
+                  else { setPinError(true); setPinValue(""); }
                 }
               }}
-              autoFocus
             />
-            {pinError && <div className="pin-error">Incorrect code — please check with the project coordinator</div>}
+            {pinError && <div style={{ fontSize: 11, color: "#e07070", marginTop: -8 }}>Incorrect code — please check with the project coordinator</div>}
           </div>
-          <button className="pin-btn"
+          <button className="onboard-btn"
             disabled={!pinValue.trim()}
             onClick={() => {
-              if (pinValue.trim() === ACCESS_CODE) {
-                setScreen("onboard");
-              } else {
-                setPinError(true);
-                setPinValue("");
-              }
+              if (pinValue.trim() === ACCESS_CODE) setScreen("onboard");
+              else { setPinError(true); setPinValue(""); }
             }}>
             Enter →
           </button>
-          <div className="pin-footer">Zazi Captioner © Evans Akanyijuka</div>
+          <div style={{ textAlign: "center", fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em", userSelect: "none" }}>Zazi Captioner © Evans Akanyijuka</div>
         </div>
       </div>
     </>
