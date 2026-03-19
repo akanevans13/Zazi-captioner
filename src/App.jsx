@@ -750,6 +750,7 @@ const CSS = `
     cursor: pointer; transition: all .15s;
   }
   .done-back-btn:hover { border-color: #504840; color: #e8dfd4; }
+
   .watermark-footer {
     text-align: center; padding: 5px 0; font-size: 9px; color: #252320;
     font-family: 'JetBrains Mono', monospace; letter-spacing: .06em;
@@ -1152,49 +1153,6 @@ export default function App() {
 
   const doneCount = images.filter((_, i) => isDone(caps[i], locStates[i])).length;
   const pct = images.length ? (doneCount / images.length) * 100 : 0;
-
-
-  /* ── PIN screen ── */
-  .pin-screen {
-    height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #0f0e0e; font-family: 'Syne', sans-serif;
-  }
-  .pin-card {
-    background: #131110; border: 1px solid #1e1c1a; border-radius: 14px;
-    padding: 40px 36px; width: 360px; display: flex; flex-direction: column;
-    gap: 20px; align-items: center; text-align: center;
-  }
-  .pin-logo { font-size: 22px; font-weight: 800; color: #e8dfd4; letter-spacing: -.02em; }
-  .pin-logo span { color: #e8a84c; }
-  .pin-logo-sub { font-size: 11px; color: #403830; margin-top: -14px; letter-spacing: .08em; text-transform: uppercase; }
-  .pin-sub { font-size: 13px; color: #504840; line-height: 1.7; }
-  .pin-input-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-  .pin-input {
-    background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 7px; font-family: 'JetBrains Mono', monospace; font-size: 18px;
-    padding: 12px 13px; outline: none; transition: border-color .15s; width: 100%;
-    text-align: center; letter-spacing: .2em; text-transform: uppercase;
-  }
-  .pin-input:focus { border-color: #e8a84c; }
-  .pin-input.error { border-color: #e07070; animation: shake .3s ease; }
-  .pin-error { font-size: 11px; color: #e07070; }
-  .pin-btn {
-    padding: 12px; background: #e8a84c; border: none; color: #111;
-    border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 14px;
-    font-weight: 800; cursor: pointer; transition: background .15s; width: 100%;
-  }
-  .pin-btn:hover:not(:disabled) { background: #f0bc6a; }
-  .pin-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .pin-footer { font-size: 9px; color: '#252320'; font-family: 'JetBrains Mono', monospace; letter-spacing: .06em; }
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-6px); }
-    40% { transform: translateX(6px); }
-    60% { transform: translateX(-4px); }
-    80% { transform: translateX(4px); }
-  }
-
-  /* ── PIN screen ── */
   if (screen === "pin") return (
     <>
       <style>{CSS}</style>
