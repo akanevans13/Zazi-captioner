@@ -1,21 +1,59 @@
 import { useState, useCallback, useRef } from "react";
 
 const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1PPUr-BeT1e4KrpLdfcfqXB2oFjQiCnqc?usp=drive_link";
-
-/* ─────────────────────────────────────────
-   ACCESS CODE — Change this before deploying
-   Share this code privately with photographers
-──────────────────────────────────────── */
 const ACCESS_CODE = "ZAZI2025"; // PIN protected
+const HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large";
+const HF_TOKEN = ""; // Optional: add your Hugging Face token for faster responses
 
 /* ─────────────────────────────────────────
-   LOCATION DATA — Country → City → Region
+   LOCATION AUTO-FILL DEFAULTS
+   Maps area → default chips per dataset
+──────────────────────────────────────── */
+const LOCATION_AUTOFILL = {
+  // South Africa
+  "Soweto":              { elements: ["street vendors","children playing","hand-painted signage"], lighting: "harsh midday sun", mood: "warm community feel" },
+  "Johannesburg CBD":    { elements: ["minibus taxi rank","pedestrian crowds","hand-painted signage"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Maboneng Precinct":   { elements: ["street art / murals","informal traders"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  "Hillbrow":            { elements: ["pedestrian crowds","street vendors","waste / litter"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  "Alexandra Township":  { elements: ["street vendors","informal traders","children playing"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Braamfontein":        { elements: ["street art / murals","pedestrian crowds"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  "Fordsburg":           { elements: ["street vendors","hawker stalls","hand-painted signage"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Khayelitsha":         { elements: ["informal traders","street vendors","children playing"], lighting: "harsh midday sun", mood: "warm community feel" },
+  "Woodstock":           { elements: ["street art / murals","informal traders"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  "Umlazi":              { elements: ["street vendors","children playing"], lighting: "harsh midday sun", mood: "warm community feel" },
+  // Nigeria
+  "Mushin":              { elements: ["hawker stalls","pedestrian crowds","hand-painted signage"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  "Oshodi":              { elements: ["minibus taxi rank","hawker stalls","pedestrian crowds"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  "Surulere":            { elements: ["street vendors","informal traders"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  "Lagos Island":        { elements: ["hawker stalls","hand-painted signage","pedestrian crowds"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Agege":               { elements: ["street vendors","hawker stalls","children playing"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  // Kenya
+  "Kibera":              { elements: ["informal traders","street vendors","children playing"], lighting: "overcast diffused", mood: "warm community feel" },
+  "Eastleigh":           { elements: ["street vendors","hawker stalls","hand-painted signage"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Mathare":             { elements: ["informal traders","children playing"], lighting: "harsh midday sun", mood: "warm community feel" },
+  "Kondele":             { elements: ["street vendors","informal traders"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  // Ghana
+  "Jamestown":           { elements: ["street vendors","children playing","hand-painted signage"], lighting: "golden hour warm light", mood: "warm community feel" },
+  "Nima":                { elements: ["hawker stalls","hand-painted signage","street vendors"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+  "Kaneshie":            { elements: ["hawker stalls","pedestrian crowds","informal traders"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  // Ethiopia
+  "Merkato":             { elements: ["hawker stalls","pedestrian crowds","street vendors"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  "Piassa":              { elements: ["street vendors","hand-painted signage"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  // Egypt
+  "Khan el-Khalili":     { elements: ["hawker stalls","hand-painted signage","pedestrian crowds"], lighting: "golden hour warm light", mood: "vibrant and busy" },
+  "Shubra":              { elements: ["street vendors","pedestrian crowds"], lighting: "harsh midday sun", mood: "chaotic and dynamic" },
+  // Default fallback
+  "default":             { elements: ["street vendors"], lighting: "harsh midday sun", mood: "vibrant and busy" },
+};
+
+/* ─────────────────────────────────────────
+   LOCATION DATA
 ──────────────────────────────────────── */
 const LOCATIONS = {
   "South Africa": {
     flag: "🇿🇦",
     cities: {
-      "Johannesburg": ["CBD","Soweto","Sandton","Maboneng Precinct","Braamfontein","Hillbrow","Alexandra Township","Yeoville","Newtown","Melville","Fordsburg","Diepsloot","Rosettenville","Orange Farm","Eldorado Park"],
+      "Johannesburg": ["Johannesburg CBD","Soweto","Sandton","Maboneng Precinct","Braamfontein","Hillbrow","Alexandra Township","Yeoville","Newtown","Melville","Fordsburg","Diepsloot","Rosettenville","Orange Farm","Eldorado Park"],
       "Cape Town":    ["City Bowl","Woodstock","Khayelitsha","Mitchells Plain","Gugulethu","Observatory","Bo-Kaap","Langa","Athlone","Sea Point"],
       "Durban":       ["CBD","Umlazi","Chatsworth","Phoenix","Pinetown","Warwick","KwaMashu","Bluff"],
       "Pretoria":     ["CBD","Soshanguve","Mamelodi","Hatfield","Atteridgeville","Centurion"],
@@ -101,33 +139,6 @@ const LOCATIONS = {
       "Yaoundé": ["Bastos","Mvan","Mvog-Mbi","Essos","Biyem-Assi"],
     }
   },
-  "Côte d'Ivoire": {
-    flag: "🇨🇮",
-    cities: {
-      "Abidjan": ["Plateau","Treichville","Adjamé","Yopougon","Cocody","Abobo","Marcory"],
-    }
-  },
-  "DR Congo": {
-    flag: "🇨🇩",
-    cities: {
-      "Kinshasa": ["Gombe","Lingwala","Kintambo","Kalamu","Lemba","Ndjili","Masina","Barumbu"],
-      "Lubumbashi": ["Kamalondo","Kampemba","Katuba","Kenya","Annexe"],
-    }
-  },
-  "Mozambique": {
-    flag: "🇲🇿",
-    cities: {
-      "Maputo":  ["Baixa","Polana","Maxaquene","Urbanização","Malhangalene","Chamanculo"],
-      "Beira":   ["Macuti","Munhava","Chipangara","Goto"],
-    }
-  },
-  "Angola": {
-    flag: "🇦🇴",
-    cities: {
-      "Luanda":   ["Ingombota","Maianga","Rangel","Cazenga","Viana","Cacuaco","Kilamba Kiaxi"],
-      "Huambo":   ["Huambo City","Catchiungo","Ecunha"],
-    }
-  },
   "Rwanda": {
     flag: "🇷🇼",
     cities: {
@@ -137,7 +148,7 @@ const LOCATIONS = {
   "Zambia": {
     flag: "🇿🇲",
     cities: {
-      "Lusaka":     ["CBD","Kalingalinga","Chibolya","Garden","Mtendere","Chelstone","Kanyama"],
+      "Lusaka":      ["CBD","Kalingalinga","Chibolya","Garden","Mtendere","Chelstone","Kanyama"],
       "Livingstone": ["Dambwa","Maramba","Libuyu","Linda"],
     }
   },
@@ -251,7 +262,7 @@ const emptyLocState = () => ({
 
 const emptyState = (dsKey) => {
   const ds = DATASETS[dsKey];
-  const obj = { _dataset: dsKey };
+  const obj = { _dataset: dsKey, _blip: "", _blip_loading: false };
   ds.sections.forEach(s => {
     obj[s.id] = s.multi ? [] : "";
     obj[`${s.id}_other`] = "";
@@ -261,53 +272,60 @@ const emptyState = (dsKey) => {
   return obj;
 };
 
+// Get auto-fill defaults for a location
+const getAutoFill = (locState) => {
+  const region = locState.other_on ? locState.region_other : locState.region;
+  const city   = locState.other_on ? locState.city_other   : locState.city;
+  return LOCATION_AUTOFILL[region] || LOCATION_AUTOFILL[city] || LOCATION_AUTOFILL["default"];
+};
+
+// Apply auto-fill to a state
+const applyAutoFill = (state, autoFill) => {
+  if (!autoFill) return state;
+  const next = { ...state };
+  if (autoFill.elements && next._dataset === "street") next.elements = autoFill.elements;
+  if (autoFill.lighting) next.lighting = autoFill.lighting;
+  if (autoFill.mood) next.mood = autoFill.mood;
+  return next;
+};
+
 const assembleCaption = (state, locState) => {
   if (!state) return "";
   const ds = DATASETS[state._dataset];
   const parts = [ds.trigger];
-
-  // Location parts
   const country = locState.other_on && locState.country_other ? locState.country_other : locState.country;
   const city    = locState.other_on && locState.city_other    ? locState.city_other    : locState.city;
   const region  = locState.other_on && locState.region_other  ? locState.region_other  : locState.region;
   if (country) parts.push(country);
   if (city && city !== country) parts.push(city);
   if (region) parts.push(region);
-
   ds.sections.forEach(s => {
     if (s.multi) parts.push(...(state[s.id] || []));
     else if (state[s.id]) parts.push(state[s.id]);
     if (state[`${s.id}_other_on`] && state[`${s.id}_other`]?.trim())
       parts.push(state[`${s.id}_other`].trim());
   });
+  if (state._blip?.trim()) parts.push(state._blip.trim());
   if (state.notes?.trim()) parts.push(state.notes.trim());
   return parts.filter(Boolean).join(", ");
 };
 
 const isDone = (state, locState) => {
   if (!state || !locState) return false;
-  const ds = DATASETS[state._dataset];
-
-  // Has location (minimum requirement)
   const hasLoc = !!(locState.country || (locState.other_on && locState.country_other));
   if (!hasLoc) return false;
-
-  // Count how many fields have any value across all sections
-  let filledFields = 0;
+  const ds = DATASETS[state._dataset];
+  let filled = 0;
   ds.sections.forEach(s => {
     const val = state[s.id];
     const other = state[`${s.id}_other_on`] && state[`${s.id}_other`]?.trim();
-    if (other) filledFields++;
-    else if (s.multi && val?.length > 0) filledFields++;
-    else if (!s.multi && !!val) filledFields++;
+    if (other || (s.multi ? val?.length > 0 : !!val)) filled++;
   });
-  if (state.notes?.trim()) filledFields++;
-
-  // Count as captioned if location + at least 1 other field filled
-  return filledFields >= 1;
+  if (state._blip?.trim()) filled++;
+  if (state.notes?.trim()) filled++;
+  return filled >= 1;
 };
 
-// Full completion check — used for ZIP quality indicator
 const isFullyDone = (state, locState) => {
   if (!state || !locState) return false;
   const ds = DATASETS[state._dataset];
@@ -321,110 +339,108 @@ const isFullyDone = (state, locState) => {
 };
 
 /* ─────────────────────────────────────────
+   BLIP API CALL
+──────────────────────────────────────── */
+const runBlip = async (file) => {
+  try {
+    const headers = { "Content-Type": file.type };
+    if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
+    const res = await fetch(HF_API_URL, {
+      method: "POST",
+      headers,
+      body: file,
+    });
+    if (!res.ok) throw new Error(`BLIP error: ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data) && data[0]?.generated_text) {
+      return data[0].generated_text;
+    }
+    return "";
+  } catch {
+    return "";
+  }
+};
+
+/* ─────────────────────────────────────────
    CSS
 ──────────────────────────────────────── */
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  .onboard {
-    height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #0f0e0e; font-family: 'Syne', sans-serif;
-  }
-  .onboard-card {
-    background: #131110; border: 1px solid #1e1c1a; border-radius: 14px;
-    padding: 40px 36px; width: 420px; display: flex; flex-direction: column; gap: 20px;
-  }
+  /* ── Onboarding / PIN shared styles ── */
+  .onboard { height: 100vh; display: flex; align-items: center; justify-content: center; background: #0f0e0e; font-family: 'Syne', sans-serif; }
+  .onboard-card { background: #131110; border: 1px solid #1e1c1a; border-radius: 14px; padding: 40px 36px; width: 420px; display: flex; flex-direction: column; gap: 20px; }
   .onboard-logo { font-size: 22px; font-weight: 800; color: #e8dfd4; letter-spacing: -.02em; }
   .onboard-logo span { color: #e8a84c; }
   .onboard-logo-sub { font-size: 11px; color: #403830; margin-top: -14px; letter-spacing: .08em; text-transform: uppercase; }
   .onboard-sub { font-size: 13px; color: #504840; line-height: 1.7; }
   .onboard-field { display: flex; flex-direction: column; gap: 7px; }
   .onboard-label { font-size: 10px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .09em; }
-  .onboard-input {
-    background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 13px;
-    padding: 10px 13px; outline: none; transition: border-color .15s; width: 100%;
-  }
+  .onboard-input { background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 13px; padding: 10px 13px; outline: none; transition: border-color .15s; width: 100%; }
   .onboard-input:focus { border-color: #e8a84c; }
-  .onboard-privacy {
-    display: flex; gap: 10px; align-items: flex-start;
-    background: #0f0e0e; border: 1px solid #1a1917; border-radius: 8px; padding: 12px;
-  }
+  .onboard-privacy { display: flex; gap: 10px; align-items: flex-start; background: #0f0e0e; border: 1px solid #1a1917; border-radius: 8px; padding: 12px; }
   .onboard-privacy-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
   .onboard-privacy-text { font-size: 11px; color: #403830; line-height: 1.7; }
-  .onboard-btn {
-    padding: 12px; background: #e8a84c; border: none; color: #111;
-    border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 14px;
-    font-weight: 800; cursor: pointer; transition: background .15s; margin-top: 4px;
-  }
+  .onboard-btn { padding: 12px; background: #e8a84c; border: none; color: #111; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: background .15s; margin-top: 4px; width: 100%; }
   .onboard-btn:hover:not(:disabled) { background: #f0bc6a; }
   .onboard-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-  .back-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; background: transparent; border: 1px solid #1e1c1a;
-    color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif;
-    font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
+  /* ── Location setup screen ── */
+  .loc-setup { height: 100vh; display: flex; flex-direction: column; background: #0f0e0e; font-family: 'Syne', sans-serif; }
+  .loc-setup-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #1a1917; flex-shrink: 0; }
+  .loc-setup-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; }
+  .loc-setup-card { background: #131110; border: 1px solid #1e1c1a; border-radius: 14px; padding: 32px; width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 16px; }
+  .loc-setup-title { font-size: 18px; font-weight: 800; color: #e8dfd4; }
+  .loc-setup-sub { font-size: 12px; color: #504840; line-height: 1.7; }
+  .loc-setup-hint { font-size: 11px; color: #403830; background: #0f0e0e; border: 1px solid #1a1917; border-radius: 7px; padding: 10px 12px; line-height: 1.7; }
+  .loc-continue-btn { padding: 12px; background: #e8a84c; border: none; color: #111; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; cursor: pointer; transition: background .15s; }
+  .loc-continue-btn:hover:not(:disabled) { background: #f0bc6a; }
+  .loc-continue-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .loc-skip-btn { padding: 10px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 12px; cursor: pointer; transition: all .15s; }
+  .loc-skip-btn:hover { border-color: #504840; color: #e8dfd4; }
+
+  /* ── BLIP loading screen ── */
+  .blip-screen { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f0e0e; font-family: 'Syne', sans-serif; gap: 20px; text-align: center; padding: 24px; }
+  .blip-title { font-size: 20px; font-weight: 800; color: #e8dfd4; }
+  .blip-sub { font-size: 13px; color: #504840; max-width: 360px; line-height: 1.7; }
+  .blip-progress-wrap { width: 300px; display: flex; flex-direction: column; gap: 8px; }
+  .blip-progress-bg { height: 4px; background: #1a1917; border-radius: 4px; overflow: hidden; }
+  .blip-progress-fill { height: 100%; background: #e8a84c; border-radius: 4px; transition: width .3s; }
+  .blip-count { font-size: 11px; color: #504840; font-family: 'JetBrains Mono', monospace; }
+  .blip-current { font-size: 11px; color: #403830; font-family: 'JetBrains Mono', monospace; }
+  .blip-skip-btn { padding: 8px 20px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; cursor: pointer; transition: all .15s; }
+  .blip-skip-btn:hover { border-color: #504840; color: #e8dfd4; }
+
+  /* ── Back btn ── */
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap; }
   .back-btn:hover { border-color: #504840; color: #e8dfd4; }
 
-  .edit-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.88);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 200; font-family: 'Syne', sans-serif;
-  }
-  .edit-card {
-    background: #131110; border: 1px solid #1e1c1a; border-radius: 12px;
-    padding: 28px; width: 360px; display: flex; flex-direction: column; gap: 16px;
-  }
+  /* ── Edit name ── */
+  .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 200; font-family: 'Syne', sans-serif; }
+  .edit-card { background: #131110; border: 1px solid #1e1c1a; border-radius: 12px; padding: 28px; width: 360px; display: flex; flex-direction: column; gap: 16px; }
   .edit-title { font-size: 16px; font-weight: 800; color: #e8dfd4; }
   .edit-field { display: flex; flex-direction: column; gap: 7px; }
   .edit-label { font-size: 10px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .09em; }
-  .edit-input {
-    background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 13px;
-    padding: 10px 13px; outline: none; transition: border-color .15s; width: 100%;
-  }
+  .edit-input { background: #0f0e0e; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 13px; padding: 10px 13px; outline: none; transition: border-color .15s; width: 100%; }
   .edit-input:focus { border-color: #e8a84c; }
   .edit-actions { display: flex; gap: 8px; }
-  .edit-cancel {
-    flex: 1; padding: 9px; background: transparent; border: 1px solid #1e1c1a;
-    color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif;
-    font-size: 12px; cursor: pointer; transition: all .15s;
-  }
+  .edit-cancel { flex: 1; padding: 9px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px; cursor: pointer; transition: all .15s; }
   .edit-cancel:hover { border-color: #504840; color: #e8dfd4; }
-  .edit-save {
-    flex: 2; padding: 9px; background: #e8a84c; border: none; color: #111;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px;
-    font-weight: 800; cursor: pointer; transition: background .15s;
-  }
+  .edit-save { flex: 2; padding: 9px; background: #e8a84c; border: none; color: #111; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; transition: background .15s; }
   .edit-save:hover:not(:disabled) { background: #f0bc6a; }
   .edit-save:disabled { opacity: .4; cursor: not-allowed; }
 
-  .upload-screen {
-    height: 100vh; display: flex; flex-direction: column;
-    background: #0f0e0e; font-family: 'Syne', sans-serif; transition: background .2s;
-  }
+  /* ── Upload ── */
+  .upload-screen { height: 100vh; display: flex; flex-direction: column; background: #0f0e0e; font-family: 'Syne', sans-serif; transition: background .2s; }
   .upload-screen.drag-over { background: #131110; }
-  .upload-topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; border-bottom: 1px solid #1a1917; flex-shrink: 0;
-  }
+  .upload-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #1a1917; flex-shrink: 0; }
   .upload-topbar-name { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #504840; }
   .upload-topbar-name span { color: #e8a84c; font-weight: 700; }
-  .edit-name-btn {
-    padding: 3px 8px; background: transparent; border: 1px solid #1e1c1a;
-    color: #403830; border-radius: 4px; font-family: 'Syne', sans-serif;
-    font-size: 10px; cursor: pointer; transition: all .15s;
-  }
+  .edit-name-btn { padding: 3px 8px; background: transparent; border: 1px solid #1e1c1a; color: #403830; border-radius: 4px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; }
   .edit-name-btn:hover { border-color: #504840; color: #e8dfd4; }
   .upload-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
-  .upload-drop-zone {
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
-    border: 2px dashed #1e1c1a; border-radius: 16px; padding: 48px 60px;
-    cursor: pointer; transition: border-color .2s; text-align: center;
-  }
+  .upload-drop-zone { display: flex; flex-direction: column; align-items: center; gap: 10px; border: 2px dashed #1e1c1a; border-radius: 16px; padding: 48px 60px; cursor: pointer; transition: border-color .2s; text-align: center; }
   .upload-drop-zone:hover, .upload-screen.drag-over .upload-drop-zone { border-color: #e8a84c; }
   .upload-icon { font-size: 48px; line-height: 1; }
   .upload-title { font-size: 22px; font-weight: 800; color: #e8dfd4; }
@@ -437,12 +453,9 @@ const CSS = `
   .upload-btn-folder { background: transparent; border: 1px solid #2a2825; color: #504840; }
   .upload-btn-folder:hover { border-color: #e8a84c; color: #e8a84c; }
 
+  /* ── App shell ── */
   .app { font-family: 'Syne', sans-serif; background: #0f0e0e; color: #e8dfd4; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-  .header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 9px 16px; border-bottom: 1px solid #1a1917;
-    background: #0f0e0e; flex-shrink: 0; gap: 12px;
-  }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid #1a1917; background: #0f0e0e; flex-shrink: 0; gap: 12px; }
   .logo { font-size: 14px; font-weight: 800; color: #e8dfd4; letter-spacing: -.02em; white-space: nowrap; }
   .logo span { color: #e8a84c; }
   .hdr-mid { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: center; }
@@ -450,157 +463,102 @@ const CSS = `
   .progress-bar-bg { width: 90px; height: 3px; background: #1a1917; border-radius: 3px; }
   .progress-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
   .hdr-right { display: flex; gap: 7px; align-items: center; }
-  .photographer-tag {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: #504840; padding: 4px 10px;
-    border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap; cursor: pointer; transition: all .15s;
-  }
+  .photographer-tag { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #504840; padding: 4px 10px; border: 1px solid #1e1c1a; border-radius: 20px; white-space: nowrap; cursor: pointer; transition: all .15s; }
   .photographer-tag:hover { border-color: #504840; color: #e8dfd4; }
   .photographer-tag span { color: #e8a84c; font-weight: 700; }
   .photographer-tag-edit { font-size: 9px; color: #2c2820; }
-  .dl-btn {
-    padding: 5px 14px; background: #e8a84c; border: none; color: #111;
-    border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px;
-    font-weight: 800; cursor: pointer; transition: background .15s; white-space: nowrap;
-  }
+  .dl-btn { padding: 5px 14px; background: #e8a84c; border: none; color: #111; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; transition: background .15s; white-space: nowrap; }
   .dl-btn:hover:not(:disabled) { background: #f0bc6a; }
   .dl-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+  /* ── Batch bar ── */
+  .batch-bar { display: flex; align-items: center; gap: 8px; padding: 6px 13px; border-bottom: 1px solid #1a1917; background: #0a0909; flex-shrink: 0; }
+  .batch-count { font-size: 10px; color: #e8a84c; font-weight: 700; white-space: nowrap; }
+  .batch-btn { padding: 4px 10px; background: transparent; border: 1px solid #2a2825; color: #504840; border-radius: 5px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .batch-btn:hover { border-color: #504840; color: #e8dfd4; }
+  .batch-btn-apply { background: #e8a84c22; border-color: #e8a84c55; color: #e8a84c; font-weight: 700; }
+  .batch-btn-apply:hover { background: #e8a84c33; border-color: #e8a84c; }
+  .batch-btn-clear { color: #403830; }
+  .batch-sep { width: 1px; height: 14px; background: #1e1c1a; flex-shrink: 0; }
+
   .body { flex: 1; min-height: 0; display: flex; overflow: hidden; }
   .img-panel { width: 52%; display: flex; flex-direction: column; border-right: 1px solid #1a1917; overflow: hidden; }
-  .img-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #080707; overflow: hidden; }
+  .img-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #080707; overflow: hidden; position: relative; }
   .main-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
   .img-footer { padding: 7px 13px; border-top: 1px solid #1a1917; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .img-name { font-size: 10px; color: #2c2820; font-family: 'JetBrains Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
   .img-actions { display: flex; align-items: center; gap: 7px; }
   .img-nav { display: flex; align-items: center; gap: 7px; }
-  .nav-btn {
-    padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a;
-    color: #e8dfd4; border-radius: 4px; font-family: 'Syne', sans-serif;
-    font-size: 11px; cursor: pointer; transition: all .15s;
-  }
+  .nav-btn { padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 4px; font-family: 'Syne', sans-serif; font-size: 11px; cursor: pointer; transition: all .15s; }
   .nav-btn:hover:not(:disabled) { border-color: #e8a84c; color: #e8a84c; }
   .nav-btn:disabled { opacity: .2; cursor: default; }
   .nav-count { font-size: 11px; color: #403830; white-space: nowrap; }
-  .delete-btn {
-    padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a;
-    color: #e07070; border-radius: 4px; font-family: 'Syne', sans-serif;
-    font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
+  .delete-btn { padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a; color: #e07070; border-radius: 4px; font-family: 'Syne', sans-serif; font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap; }
   .delete-btn:hover { border-color: #e07070; background: rgba(224,112,112,.08); }
+  .copy-prev-btn { padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a; color: #504840; border-radius: 4px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .copy-prev-btn:hover:not(:disabled) { border-color: #504840; color: #e8dfd4; }
+  .copy-prev-btn:disabled { opacity: .2; cursor: default; }
 
-  .ds-bar {
-    padding: 8px 13px; border-bottom: 1px solid #1a1917;
-    display: flex; gap: 5px; align-items: center; flex-shrink: 0;
-    overflow-x: auto; scrollbar-width: none;
-  }
+  /* ── Dataset picker ── */
+  .ds-bar { padding: 8px 13px; border-bottom: 1px solid #1a1917; display: flex; gap: 5px; align-items: center; flex-shrink: 0; overflow-x: auto; scrollbar-width: none; }
   .ds-bar::-webkit-scrollbar { display: none; }
   .ds-bar-label { font-size: 9px; color: #403830; white-space: nowrap; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-right: 2px; }
-  .ds-chip {
-    display: flex; align-items: center; gap: 4px;
-    padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a;
-    color: #403830; border-radius: 20px; font-family: 'Syne', sans-serif;
-    font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap;
-  }
+  .ds-chip { display: flex; align-items: center; gap: 4px; padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a; color: #403830; border-radius: 20px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap; }
   .ds-chip:hover { border-color: #504840; color: #e8dfd4; }
 
+  /* ── Form panel ── */
   .form-panel { width: 48%; display: flex; flex-direction: column; overflow: hidden; }
-  .form-scroll {
-    flex: 1; min-height: 0; overflow-y: auto; padding: 14px;
-    display: flex; flex-direction: column; gap: 14px;
-    scrollbar-width: thin; scrollbar-color: #1e1c1a transparent;
-  }
+  .form-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; scrollbar-color: #1e1c1a transparent; }
   .field { display: flex; flex-direction: column; gap: 7px; }
   .label { font-size: 9px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .1em; display: flex; align-items: center; gap: 5px; }
   .req { font-size: 10px; }
   .multi-hint { font-size: 9px; color: #2c2820; font-weight: 400; text-transform: none; letter-spacing: 0; }
-  .done-badge {
-    margin-left: auto; display: inline-flex; align-items: center; gap: 3px;
-    font-size: 9px; color: #5aaa7a; padding: 1px 6px;
-    background: rgba(90,170,122,.08); border: 1px solid rgba(90,170,122,.2);
-    border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
-  }
+  .done-badge { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; font-size: 9px; color: #5aaa7a; padding: 1px 6px; background: rgba(90,170,122,.08); border: 1px solid rgba(90,170,122,.2); border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ── BLIP caption field ── */
+  .blip-field { display: flex; flex-direction: column; gap: 7px; }
+  .blip-label { font-size: 9px; font-weight: 700; color: #504840; text-transform: uppercase; letter-spacing: .1em; display: flex; align-items: center; gap: 6px; }
+  .blip-badge { font-size: 8px; padding: 1px 6px; background: #e8a84c18; border: 1px solid #e8a84c44; color: #e8a84c; border-radius: 20px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .blip-loading-badge { font-size: 8px; padding: 1px 6px; background: #1a1917; border: 1px solid #2a2825; color: #504840; border-radius: 20px; animation: pulse 1.2s ease infinite; }
+  .blip-textarea { background: #131110; border: 1px solid #e8a84c33; color: #a09070; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 8px 10px; outline: none; transition: border-color .15s; resize: none; line-height: 1.7; width: 100%; }
+  .blip-textarea:focus { border-color: #e8a84c; color: #e8dfd4; }
+  .blip-rerun-btn { align-self: flex-start; padding: 3px 9px; background: transparent; border: 1px solid #2a2825; color: #403830; border-radius: 4px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; }
+  .blip-rerun-btn:hover { border-color: #e8a84c55; color: #e8a84c; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
   /* ── Location section ── */
   .loc-section { display: flex; flex-direction: column; gap: 8px; }
   .loc-header { display: flex; align-items: center; justify-content: space-between; }
-  .loc-lock {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 10px; color: #504840; cursor: pointer; user-select: none;
-    padding: 3px 8px; border: 1px solid #1e1c1a; border-radius: 20px;
-    transition: all .15s;
-  }
+  .loc-lock { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #504840; cursor: pointer; user-select: none; padding: 3px 8px; border: 1px solid #1e1c1a; border-radius: 20px; transition: all .15s; }
   .loc-lock:hover { border-color: #504840; color: #e8dfd4; }
   .loc-lock.locked { border-color: #e8a84c55; color: #e8a84c; background: #e8a84c10; }
   .loc-lock-dot { width: 7px; height: 7px; border-radius: 50%; background: #2c2820; transition: background .15s; }
   .loc-lock.locked .loc-lock-dot { background: #e8a84c; }
   .loc-row { display: flex; gap: 7px; }
-  .loc-select {
-    flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px;
-    padding: 7px 10px; outline: none; transition: border-color .15s; cursor: pointer;
-    appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23504840'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 10px center;
-    padding-right: 28px;
-  }
+  .loc-select { flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; padding: 7px 10px; outline: none; transition: border-color .15s; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23504840'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
   .loc-select:focus { border-color: #e8a84c; }
   .loc-select:disabled { opacity: .35; cursor: not-allowed; }
   .loc-select option { background: #1a1917; }
   .loc-other-row { display: flex; gap: 7px; margin-top: 2px; }
-  .loc-other-btn {
-    padding: 5px 10px; background: #131110; border: 1px dashed #1e1c1a;
-    color: #2c2820; border-radius: 6px; font-family: 'Syne', sans-serif;
-    font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap; flex-shrink: 0;
-  }
+  .loc-other-btn { padding: 5px 10px; background: #131110; border: 1px dashed #1e1c1a; color: #2c2820; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; white-space: nowrap; flex-shrink: 0; }
   .loc-other-btn:hover { border-color: #504840; color: #e8dfd4; }
   .loc-other-btn.on { border-style: solid; border-color: #e8a84c55; color: #e8a84c; }
-  .loc-other-input {
-    flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px;
-    padding: 5px 9px; outline: none; transition: border-color .15s; min-width: 0;
-  }
+  .loc-other-input { flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; padding: 5px 9px; outline: none; transition: border-color .15s; min-width: 0; }
   .loc-other-input:focus { border-color: #e8a84c; }
-  .loc-locked-display {
-    background: #0f0e0e; border: 1px solid #e8a84c22; border-radius: 6px;
-    padding: 8px 12px; font-size: 11px; color: #e8a84c;
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  }
+  .loc-locked-display { background: #0f0e0e; border: 1px solid #e8a84c22; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #e8a84c; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .loc-locked-display-text { display: flex; align-items: center; gap: 6px; }
-  .loc-unlock-btn {
-    font-size: 10px; color: #504840; background: transparent; border: none;
-    cursor: pointer; padding: 0; font-family: 'Syne', sans-serif; transition: color .15s;
-    white-space: nowrap;
-  }
+  .loc-unlock-btn { font-size: 10px; color: #504840; background: transparent; border: none; cursor: pointer; padding: 0; font-family: 'Syne', sans-serif; transition: color .15s; white-space: nowrap; }
   .loc-unlock-btn:hover { color: #e8dfd4; }
 
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-  .chip {
-    padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a;
-    color: #403830; border-radius: 20px; font-family: 'Syne', sans-serif;
-    font-size: 10px; cursor: pointer; transition: all .15s; line-height: 1.5;
-  }
+  .chip { padding: 4px 9px; background: #131110; border: 1px solid #1e1c1a; color: #403830; border-radius: 20px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; line-height: 1.5; }
   .chip:hover { border-color: #504840; color: #e8dfd4; }
   .other-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-  .other-toggle {
-    padding: 4px 9px; background: #131110; border: 1px dashed #1e1c1a;
-    color: #2c2820; border-radius: 20px; font-family: 'Syne', sans-serif;
-    font-size: 10px; cursor: pointer; transition: all .15s;
-    line-height: 1.5; white-space: nowrap; flex-shrink: 0;
-  }
+  .other-toggle { padding: 4px 9px; background: #131110; border: 1px dashed #1e1c1a; color: #2c2820; border-radius: 20px; font-family: 'Syne', sans-serif; font-size: 10px; cursor: pointer; transition: all .15s; line-height: 1.5; white-space: nowrap; flex-shrink: 0; }
   .other-toggle:hover { border-color: #504840; color: #e8dfd4; }
-  .other-input {
-    flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px;
-    padding: 5px 9px; outline: none; transition: border-color .15s; min-width: 0;
-  }
+  .other-input { flex: 1; background: #131110; border: 1px solid #1e1c1a; color: #e8dfd4; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; padding: 5px 9px; outline: none; transition: border-color .15s; min-width: 0; }
   .other-input:focus { border-color: #e8a84c; }
-  .notes-input {
-    background: #131110; border: 1px solid #1a1917; color: #e8dfd4;
-    border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px;
-    padding: 7px 10px; outline: none; transition: border-color .15s;
-    resize: none; line-height: 1.6; width: 100%;
-  }
+  .notes-input { background: #131110; border: 1px solid #1a1917; color: #e8dfd4; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 11px; padding: 7px 10px; outline: none; transition: border-color .15s; resize: none; line-height: 1.6; width: 100%; }
   .notes-input:focus { border-color: #e8a84c; }
   .divider { border: none; border-top: 1px solid #1a1917; }
   .preview { background: #080707; border: 1px solid #1a1917; border-radius: 7px; padding: 11px; }
@@ -608,173 +566,84 @@ const CSS = `
   .preview-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #605040; line-height: 1.8; word-break: break-all; }
   .preview-text .trigger { font-weight: 600; }
 
-  .thumb-strip {
-    display: flex; gap: 4px; padding: 6px 10px;
-    background: #080707; border-top: 1px solid #1a1917;
-    overflow-x: auto; flex-shrink: 0;
-    scrollbar-width: thin; scrollbar-color: #1e1c1a transparent;
-    height: 68px; align-items: center;
-  }
+  /* ── Thumbnail strip ── */
+  .thumb-strip { display: flex; gap: 4px; padding: 6px 10px; background: #080707; border-top: 1px solid #1a1917; overflow-x: auto; flex-shrink: 0; scrollbar-width: thin; scrollbar-color: #1e1c1a transparent; height: 68px; align-items: center; }
   .thumb-wrap { position: relative; flex-shrink: 0; }
-  .thumb {
-    width: 50px; height: 50px; border-radius: 4px; overflow: hidden;
-    border: 2px solid transparent; cursor: pointer; background: #131110;
-    padding: 0; transition: border-color .15s; display: block;
-  }
+  .thumb { width: 50px; height: 50px; border-radius: 4px; overflow: hidden; border: 2px solid transparent; cursor: pointer; background: #131110; padding: 0; transition: border-color .15s, box-shadow .15s; display: block; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .thumb:hover { border-color: #504840; }
-  .done-dot {
-    position: absolute; bottom: 2px; right: 2px; width: 13px; height: 13px;
-    background: #5aaa7a; color: white; border-radius: 50%; font-size: 7px;
-    display: flex; align-items: center; justify-content: center; font-weight: 900; pointer-events: none;
-  }
-  .thumb-delete {
-    position: absolute; top: -5px; right: -5px;
-    width: 16px; height: 16px; background: #e07070; border: none;
-    border-radius: 50%; color: white; font-size: 9px; font-weight: 900;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity .15s; line-height: 1; padding: 0;
-  }
+  .thumb-selected { box-shadow: 0 0 0 2px #e8a84c !important; border-color: #e8a84c !important; }
+  .done-dot { position: absolute; bottom: 2px; right: 2px; width: 13px; height: 13px; border-radius: 50%; font-size: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; pointer-events: none; }
+  .thumb-delete { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #e07070; border: none; border-radius: 50%; color: white; font-size: 9px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; line-height: 1; padding: 0; }
   .thumb-wrap:hover .thumb-delete { opacity: 1; }
-  .thumb-add {
-    flex-shrink: 0; width: 50px; height: 50px; border-radius: 4px;
-    border: 1px dashed #2a2825; background: transparent; color: #403830;
-    font-size: 20px; cursor: pointer; transition: all .15s;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .thumb-add { flex-shrink: 0; width: 50px; height: 50px; border-radius: 4px; border: 1px dashed #2a2825; background: transparent; color: #403830; font-size: 20px; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
   .thumb-add:hover { border-color: #e8a84c; color: #e8a84c; }
+  .thumb-loading { position: absolute; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #e8a84c; }
 
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.88);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 100; font-family: 'Syne', sans-serif;
-  }
-  .modal {
-    background: #131110; border: 1px solid #1e1c1a; border-radius: 14px;
-    padding: 32px; width: 420px; display: flex; flex-direction: column; gap: 18px;
-  }
+  /* ── Modals ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 100; font-family: 'Syne', sans-serif; }
+  .modal { background: #131110; border: 1px solid #1e1c1a; border-radius: 14px; padding: 32px; width: 420px; display: flex; flex-direction: column; gap: 18px; }
   .modal-title { font-size: 18px; font-weight: 800; color: #e8dfd4; }
-  .modal-stats {
-    background: #0f0e0e; border: 1px solid #1a1917;
-    border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px;
-  }
+  .modal-stats { background: #0f0e0e; border: 1px solid #1a1917; border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
   .modal-stat { display: flex; justify-content: space-between; font-size: 12px; }
   .modal-stat-label { color: #504840; }
   .modal-stat-value { color: #e8dfd4; font-weight: 700; }
   .steps { display: flex; flex-direction: column; }
   .step { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #1a1917; }
   .step:last-child { border-bottom: none; }
-  .step-num {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: #1e1c1a; color: #e8a84c; font-size: 11px;
-    font-weight: 800; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 1px;
-  }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; background: #1e1c1a; color: #e8a84c; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
   .step-num.done { background: rgba(90,170,122,.15); color: #5aaa7a; }
   .step-content { display: flex; flex-direction: column; gap: 4px; }
   .step-title { font-size: 12px; font-weight: 700; color: #e8dfd4; }
   .step-sub { font-size: 11px; color: #504840; line-height: 1.6; }
   .modal-actions { display: flex; gap: 8px; flex-direction: column; }
-  .modal-cancel {
-    padding: 10px; background: transparent; border: 1px solid #1e1c1a;
-    color: #504840; border-radius: 7px; font-family: 'Syne', sans-serif;
-    font-size: 12px; cursor: pointer; transition: all .15s;
-  }
+  .modal-cancel { padding: 10px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 12px; cursor: pointer; transition: all .15s; }
   .modal-cancel:hover { border-color: #504840; color: #e8dfd4; }
-  .modal-dl-btn {
-    padding: 10px; background: #e8a84c; border: none; color: #111;
-    border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 12px;
-    font-weight: 800; cursor: pointer; transition: background .15s;
-  }
+  .modal-dl-btn { padding: 10px; background: #e8a84c; border: none; color: #111; border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; transition: background .15s; }
   .modal-dl-btn:hover:not(:disabled) { background: #f0bc6a; }
   .modal-dl-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .drive-btn {
-    padding: 10px; background: transparent; border: 1px solid #1e6aff44; color: #6aa3ff;
-    border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 12px;
-    font-weight: 700; cursor: pointer; transition: all .15s;
-    display: flex; align-items: center; justify-content: center; gap: 7px;
-  }
+  .drive-btn { padding: 10px; background: transparent; border: 1px solid #1e6aff44; color: #6aa3ff; border-radius: 7px; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 7px; }
   .drive-btn:hover { background: #1e6aff11; border-color: #6aa3ff; }
 
-  .delete-confirm-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.88);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 200; font-family: 'Syne', sans-serif;
-  }
-  .delete-confirm {
-    background: #131110; border: 1px solid #2a2825; border-radius: 12px;
-    padding: 24px; width: 340px; display: flex; flex-direction: column; gap: 14px;
-  }
+  /* ── Delete confirm ── */
+  .delete-confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 200; font-family: 'Syne', sans-serif; }
+  .delete-confirm { background: #131110; border: 1px solid #2a2825; border-radius: 12px; padding: 24px; width: 340px; display: flex; flex-direction: column; gap: 14px; }
   .delete-confirm-title { font-size: 15px; font-weight: 800; color: #e8dfd4; }
   .delete-confirm-sub { font-size: 12px; color: #504840; line-height: 1.6; }
   .delete-confirm-actions { display: flex; gap: 8px; }
-  .delete-no {
-    flex: 1; padding: 9px; background: transparent; border: 1px solid #1e1c1a;
-    color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif;
-    font-size: 12px; cursor: pointer; transition: all .15s;
-  }
+  .delete-no { flex: 1; padding: 9px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px; cursor: pointer; transition: all .15s; }
   .delete-no:hover { border-color: #504840; color: #e8dfd4; }
-  .delete-yes {
-    flex: 1; padding: 9px; background: rgba(224,112,112,.15);
-    border: 1px solid #e0707044; color: #e07070;
-    border-radius: 6px; font-family: 'Syne', sans-serif;
-    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
-  }
+  .delete-yes { flex: 1; padding: 9px; background: rgba(224,112,112,.15); border: 1px solid #e0707044; color: #e07070; border-radius: 6px; font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s; }
   .delete-yes:hover { background: rgba(224,112,112,.25); }
 
-  .done-screen {
-    height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    background: #0f0e0e; font-family: 'Syne', sans-serif;
-    gap: 14px; text-align: center; padding: 24px;
-  }
+  /* ── Done screen ── */
+  .done-screen { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f0e0e; font-family: 'Syne', sans-serif; gap: 14px; text-align: center; padding: 24px; }
   .done-icon { font-size: 54px; line-height: 1; }
   .done-title { font-size: 26px; font-weight: 800; color: #e8dfd4; }
   .done-sub { font-size: 13px; color: #504840; max-width: 360px; line-height: 1.8; }
-  .done-reminder {
-    background: #131110; border: 1px solid #1e1c1a; border-radius: 10px;
-    padding: 16px 20px; max-width: 360px; display: flex; flex-direction: column; gap: 8px;
-  }
+  .done-reminder { background: #131110; border: 1px solid #1e1c1a; border-radius: 10px; padding: 16px 20px; max-width: 360px; display: flex; flex-direction: column; gap: 8px; }
   .done-reminder-title { font-size: 11px; font-weight: 700; color: #e8a84c; text-transform: uppercase; letter-spacing: .08em; }
   .done-reminder-text { font-size: 12px; color: #504840; line-height: 1.7; }
   .done-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .done-drive-btn {
-    padding: 12px 24px; background: transparent; border: 1px solid #1e6aff55; color: #6aa3ff;
-    border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px;
-    font-weight: 700; cursor: pointer; transition: all .15s;
-  }
+  .done-drive-btn { padding: 12px 24px; background: transparent; border: 1px solid #1e6aff55; color: #6aa3ff; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s; }
   .done-drive-btn:hover { background: #1e6aff11; border-color: #6aa3ff; }
-  .done-back-btn {
-    padding: 12px 24px; background: transparent; border: 1px solid #1e1c1a; color: #504840;
-    border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px;
-    cursor: pointer; transition: all .15s;
-  }
+  .done-back-btn { padding: 12px 24px; background: transparent; border: 1px solid #1e1c1a; color: #504840; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 13px; cursor: pointer; transition: all .15s; }
   .done-back-btn:hover { border-color: #504840; color: #e8dfd4; }
 
-  .watermark-footer {
-    text-align: center; padding: 5px 0; font-size: 9px; color: #252320;
-    font-family: 'JetBrains Mono', monospace; letter-spacing: .06em;
-    border-top: 1px solid #131110; background: #0a0909; flex-shrink: 0;
-    user-select: none; pointer-events: none;
-  }
-
+  /* ── Watermark ── */
+  .watermark-footer { text-align: center; padding: 5px 0; font-size: 9px; color: #1e1c1a; font-family: 'JetBrains Mono', monospace; letter-spacing: .06em; border-top: 1px solid #131110; background: #0a0909; flex-shrink: 0; user-select: none; pointer-events: none; }
 `;
 
 /* ─────────────────────────────────────────
-   LOCATION SECTION COMPONENT
+   LOCATION SECTION
 ──────────────────────────────────────── */
-function LocationSection({ locState, setLocState, locLocked, setLocLocked, accent }) {
+function LocationSection({ locState, setLocState, locLocked, setLocLocked, accent, compact }) {
   const countries = Object.keys(LOCATIONS);
-  const cities    = locState.country && LOCATIONS[locState.country]
-    ? Object.keys(LOCATIONS[locState.country].cities) : [];
-  const regions   = locState.country && locState.city && LOCATIONS[locState.country]?.cities[locState.city]
-    ? LOCATIONS[locState.country].cities[locState.city] : [];
-
+  const cities  = locState.country && LOCATIONS[locState.country] ? Object.keys(LOCATIONS[locState.country].cities) : [];
+  const regions = locState.country && locState.city && LOCATIONS[locState.country]?.cities[locState.city] ? LOCATIONS[locState.country].cities[locState.city] : [];
   const upd = (fields) => setLocState(p => ({ ...p, ...fields }));
-
   const hasLoc = !!(locState.country || (locState.other_on && locState.country_other));
 
-  // When locked show a summary badge instead of the full dropdowns
   if (locLocked && hasLoc) {
     const display = [
       locState.other_on ? locState.country_other : locState.country,
@@ -784,10 +653,7 @@ function LocationSection({ locState, setLocState, locLocked, setLocLocked, accen
     return (
       <div className="loc-section">
         <div className="loc-header">
-          <label className="label">
-            Location <span className="req" style={{ color: accent }}>*</span>
-            <span className="done-badge">✓ locked</span>
-          </label>
+          <label className="label">Location <span className="req" style={{ color: accent }}>*</span><span className="done-badge">✓ locked</span></label>
         </div>
         <div className="loc-locked-display">
           <div className="loc-locked-display-text">📍 {display}</div>
@@ -805,65 +671,40 @@ function LocationSection({ locState, setLocState, locLocked, setLocLocked, accen
           {hasLoc && <span className="done-badge">✓</span>}
         </label>
         {hasLoc && (
-          <div
-            className={`loc-lock${locLocked ? " locked" : ""}`}
-            onClick={() => setLocLocked(!locLocked)}
-            title="Lock location across all images"
-          >
+          <div className={`loc-lock${locLocked ? " locked" : ""}`} onClick={() => setLocLocked(!locLocked)}>
             <div className="loc-lock-dot" />
             {locLocked ? "Locked" : "Lock for all images"}
           </div>
         )}
       </div>
-
       {!locState.other_on ? (
         <>
           <div className="loc-row">
-            {/* Country */}
-            <select className="loc-select" value={locState.country}
-              onChange={e => upd({ country: e.target.value, city: "", region: "" })}>
+            <select className="loc-select" value={locState.country} onChange={e => upd({ country: e.target.value, city: "", region: "" })}>
               <option value="">Country…</option>
-              {countries.map(c => (
-                <option key={c} value={c}>{LOCATIONS[c].flag} {c}</option>
-              ))}
+              {countries.map(c => <option key={c} value={c}>{LOCATIONS[c].flag} {c}</option>)}
             </select>
-
-            {/* City */}
-            <select className="loc-select" value={locState.city}
-              disabled={!locState.country}
-              onChange={e => upd({ city: e.target.value, region: "" })}>
+            <select className="loc-select" value={locState.city} disabled={!locState.country} onChange={e => upd({ city: e.target.value, region: "" })}>
               <option value="">City…</option>
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-
-          {/* Region / Neighbourhood */}
           {locState.city && regions.length > 0 && (
-            <select className="loc-select" value={locState.region}
-              onChange={e => upd({ region: e.target.value })}>
+            <select className="loc-select" value={locState.region} onChange={e => upd({ region: e.target.value })}>
               <option value="">Area / Neighbourhood (optional)…</option>
               {regions.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           )}
         </>
       ) : (
-        /* Other — free text for all three levels */
         <div className="loc-row" style={{ flexDirection: "column", gap: 6 }}>
-          <input className="loc-other-input" placeholder="Country…"
-            value={locState.country_other} onChange={e => upd({ country_other: e.target.value })} />
-          <input className="loc-other-input" placeholder="City…"
-            value={locState.city_other} onChange={e => upd({ city_other: e.target.value })} />
-          <input className="loc-other-input" placeholder="Area / Neighbourhood (optional)…"
-            value={locState.region_other} onChange={e => upd({ region_other: e.target.value })} />
+          <input className="loc-other-input" placeholder="Country…" value={locState.country_other} onChange={e => upd({ country_other: e.target.value })} />
+          <input className="loc-other-input" placeholder="City…" value={locState.city_other} onChange={e => upd({ city_other: e.target.value })} />
+          <input className="loc-other-input" placeholder="Area / Neighbourhood (optional)…" value={locState.region_other} onChange={e => upd({ region_other: e.target.value })} />
         </div>
       )}
-
-      {/* Other toggle */}
       <div className="loc-other-row">
-        <button
-          className={`loc-other-btn${locState.other_on ? " on" : ""}`}
-          onClick={() => upd({ other_on: !locState.other_on })}
-        >
+        <button className={`loc-other-btn${locState.other_on ? " on" : ""}`} onClick={() => upd({ other_on: !locState.other_on })}>
           {locState.other_on ? "← Use dropdown" : "+ Not in the list? Type it"}
         </button>
       </div>
@@ -887,8 +728,7 @@ function ChipSection({ section, state, update, accent }) {
       update(section.id, val === chip ? "" : chip);
     }
   };
-  const sectionDone = otherOn && otherText.trim()
-    ? true : section.multi ? (val || []).length > 0 : !!val;
+  const sectionDone = (otherOn && otherText.trim()) ? true : section.multi ? (val || []).length > 0 : !!val;
 
   return (
     <div className="field">
@@ -947,6 +787,7 @@ function DownloadModal({ images, caps, locStates, photographerName, onClose, onD
   const [downloaded, setDownloaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const doneCount = images.filter((_, i) => isDone(caps[i], locStates[i])).length;
+  const fullCount = images.filter((_, i) => isFullyDone(caps[i], locStates[i])).length;
 
   const handleDownload = async () => {
     setBusy(true);
@@ -975,7 +816,7 @@ function DownloadModal({ images, caps, locStates, photographerName, onClose, onD
         }
       }
       zip.file("SUBMISSION_INFO.txt",
-        `Photographer: ${photographerName}\nSubmitted: ${new Date().toISOString()}\nTotal images: ${images.length}\nCaptioned: ${doneCount}/${images.length}\n`
+        `Photographer: ${photographerName}\nSubmitted: ${new Date().toISOString()}\nTotal images: ${images.length}\nPartially captioned: ${doneCount}/${images.length}\nFully captioned: ${fullCount}/${images.length}\n`
       );
       const blob = await zip.generateAsync({ type: "blob" });
       Object.assign(document.createElement("a"), {
@@ -992,9 +833,9 @@ function DownloadModal({ images, caps, locStates, photographerName, onClose, onD
         <div className="modal-title">{downloaded ? "✅ ZIP downloaded — one step left" : "Almost done!"}</div>
         <div className="modal-stats">
           <div className="modal-stat"><span className="modal-stat-label">Photographer</span><span className="modal-stat-value">{photographerName}</span></div>
-          <div className="modal-stat"><span className="modal-stat-label">Images</span><span className="modal-stat-value">{images.length}</span></div>
+          <div className="modal-stat"><span className="modal-stat-label">Total images</span><span className="modal-stat-value">{images.length}</span></div>
           <div className="modal-stat"><span className="modal-stat-label">Partially captioned</span><span className="modal-stat-value" style={{ color: "#e8a84c" }}>{doneCount} / {images.length}</span></div>
-          <div className="modal-stat"><span className="modal-stat-label">Fully captioned</span><span className="modal-stat-value" style={{ color: "#5aaa7a" }}>{images.filter((_, i) => isFullyDone(caps[i], locStates[i])).length} / {images.length}</span></div>
+          <div className="modal-stat"><span className="modal-stat-label">Fully captioned</span><span className="modal-stat-value" style={{ color: "#5aaa7a" }}>{fullCount} / {images.length}</span></div>
         </div>
         <div className="steps">
           <div className="step">
@@ -1035,10 +876,8 @@ function EditNameModal({ current, onSave, onClose }) {
         <div className="edit-title">Edit your name</div>
         <div className="edit-field">
           <label className="edit-label">Full name</label>
-          <input className="edit-input" value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && name.trim() && onSave(name.trim())}
-            autoFocus />
+          <input className="edit-input" value={name} onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && name.trim() && onSave(name.trim())} autoFocus />
         </div>
         <div className="edit-actions">
           <button className="edit-cancel" onClick={onClose}>Cancel</button>
@@ -1053,37 +892,62 @@ function EditNameModal({ current, onSave, onClose }) {
    MAIN APP
 ──────────────────────────────────────── */
 export default function App() {
-  const [screen, setScreen] = useState("pin");
+  const [screen, setScreen]     = useState("pin");
   const [pinValue, setPinValue] = useState("");
   const [pinError, setPinError] = useState(false);
   const [photographerName, setPhotographerName] = useState("");
   const [photographerNote, setPhotographerNote] = useState("");
-  const [images, setImages] = useState([]);
-  const [caps, setCaps] = useState({});
-  const [locStates, setLocStates] = useState({});  // per-image location state
+  const [images, setImages]     = useState([]);
+  const [caps, setCaps]         = useState({});
+  const [locStates, setLocStates] = useState({});
+  const [globalLocState, setGlobalLocState] = useState(emptyLocState());
   const [locLocked, setLocLocked] = useState(false);
-  const [lockedLocState, setLockedLocState] = useState(emptyLocState());
-  const [idx, setIdx] = useState(0);
-  const [drag, setDrag] = useState(false);
+  const [idx, setIdx]           = useState(0);
+  const [drag, setDrag]         = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showEditName, setShowEditName] = useState(false);
+  const [selected, setSelected] = useState(new Set()); // batch selection
+  const [blipRunning, setBlipRunning] = useState(false);
+  const [blipProgress, setBlipProgress] = useState(0);
+  const [blipCurrent, setBlipCurrent] = useState("");
   const fileRef = useRef();
   const folderRef = useRef();
   const addMoreRef = useRef();
   const addMoreFolderRef = useRef();
 
+  /* ── Add files ── */
   const addFiles = useCallback(files => {
     const imgs = Array.from(files).filter(f => f.type.startsWith("image/"));
     setImages(prev => {
       const names = new Set(prev.map(i => i.name));
-      return [...prev, ...imgs
-        .filter(f => !names.has(f.name))
-        .map(f => ({ file: f, url: URL.createObjectURL(f), name: f.name }))];
+      return [...prev, ...imgs.filter(f => !names.has(f.name)).map(f => ({ file: f, url: URL.createObjectURL(f), name: f.name }))];
     });
-    setScreen("caption");
+    setScreen("location");
   }, []);
 
+  /* ── Run BLIP on all images ── */
+  const runBlipAll = async (imgs, locState) => {
+    setBlipRunning(true);
+    setBlipProgress(0);
+    const autoFill = getAutoFill(locState);
+    for (let i = 0; i < imgs.length; i++) {
+      setBlipCurrent(imgs[i].name);
+      setBlipProgress(Math.round((i / imgs.length) * 100));
+      const blipText = await runBlip(imgs[i].file);
+      setCaps(prev => {
+        const existing = prev[i] || emptyState("street");
+        const withAutoFill = applyAutoFill(existing, autoFill);
+        return { ...prev, [i]: { ...withAutoFill, _blip: blipText, _blip_loading: false } };
+      });
+      setLocStates(prev => ({ ...prev, [i]: locState }));
+    }
+    setBlipProgress(100);
+    setBlipRunning(false);
+    setScreen("caption");
+  };
+
+  /* ── Delete image ── */
   const deleteImage = (i) => {
     setImages(prev => prev.filter((_, j) => j !== i));
     setCaps(prev => {
@@ -1104,6 +968,11 @@ export default function App() {
       });
       return next;
     });
+    setSelected(prev => {
+      const next = new Set();
+      prev.forEach(s => { if (s < i) next.add(s); else if (s > i) next.add(s - 1); });
+      return next;
+    });
     setIdx(prev => {
       if (images.length <= 1) { setScreen("upload"); return 0; }
       return Math.min(prev, images.length - 2);
@@ -1111,17 +980,68 @@ export default function App() {
     setDeleteTarget(null);
   };
 
-  const state = caps[idx] || emptyState("street");
-  const accent = DATASETS[state._dataset]?.color || "#e8a84c";
-  const ds = DATASETS[state._dataset];
+  /* ── Batch apply ── */
+  const applyToSelected = () => {
+    if (selected.size === 0) return;
+    const sourceCap = caps[idx] || emptyState("street");
+    const sourceLoc = locStates[idx] || emptyLocState();
+    setCaps(prev => {
+      const next = { ...prev };
+      selected.forEach(i => { next[i] = { ...sourceCap }; });
+      return next;
+    });
+    setLocStates(prev => {
+      const next = { ...prev };
+      selected.forEach(i => { next[i] = { ...sourceLoc }; });
+      return next;
+    });
+    setSelected(new Set());
+  };
 
-  // Location state for current image — if locked use the locked state
-  const currentLocState = locLocked ? lockedLocState : (locStates[idx] || emptyLocState());
+  /* ── Copy from previous ── */
+  const copyFromPrev = () => {
+    if (idx === 0) return;
+    const prevCap = caps[idx - 1] || emptyState("street");
+    const prevLoc = locStates[idx - 1] || emptyLocState();
+    setCaps(p => ({ ...p, [idx]: { ...prevCap } }));
+    setLocStates(p => ({ ...p, [idx]: { ...prevLoc } }));
+  };
+
+  /* ── Toggle thumbnail selection ── */
+  const toggleSelect = (i, e) => {
+    if (e.shiftKey && selected.size > 0) {
+      const last = Math.max(...selected);
+      const min = Math.min(i, last);
+      const max = Math.max(i, last);
+      const next = new Set(selected);
+      for (let j = min; j <= max; j++) next.add(j);
+      setSelected(next);
+    } else {
+      const next = new Set(selected);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      setSelected(next);
+    }
+  };
+
+  /* ── Location lock handler ── */
+  const handleSetLocLocked = (val) => {
+    if (val) {
+      const current = locStates[idx] || emptyLocState();
+      setGlobalLocState(current);
+      setLocStates(prev => {
+        const next = { ...prev };
+        images.forEach((_, i) => { next[i] = current; });
+        return next;
+      });
+    }
+    setLocLocked(val);
+  };
+
+  const currentLocState = locLocked ? globalLocState : (locStates[idx] || emptyLocState());
   const setCurrentLocState = (updater) => {
     const newVal = typeof updater === "function" ? updater(currentLocState) : updater;
     if (locLocked) {
-      setLockedLocState(newVal);
-      // Apply to all images
+      setGlobalLocState(newVal);
       setLocStates(prev => {
         const next = { ...prev };
         images.forEach((_, i) => { next[i] = newVal; });
@@ -1132,20 +1052,9 @@ export default function App() {
     }
   };
 
-  // When locking, save current image's loc state as the locked state and apply to all
-  const handleSetLocLocked = (val) => {
-    if (val) {
-      const current = locStates[idx] || emptyLocState();
-      setLockedLocState(current);
-      setLocStates(prev => {
-        const next = { ...prev };
-        images.forEach((_, i) => { next[i] = current; });
-        return next;
-      });
-    }
-    setLocLocked(val);
-  };
-
+  const state = caps[idx] || emptyState("street");
+  const accent = DATASETS[state._dataset]?.color || "#e8a84c";
+  const ds = DATASETS[state._dataset];
   const update = (field, val) =>
     setCaps(p => ({ ...p, [idx]: { ...(p[idx] || emptyState("street")), [field]: val } }));
   const setDataset = (dsKey) =>
@@ -1153,26 +1062,22 @@ export default function App() {
 
   const doneCount = images.filter((_, i) => isDone(caps[i], locStates[i])).length;
   const pct = images.length ? (doneCount / images.length) * 100 : 0;
-    if (screen === "pin") return (
+
+  /* ── PIN Screen ── */
+  if (screen === "pin") return (
     <>
       <style>{CSS}</style>
       <div className="onboard">
         <div className="onboard-card">
           <div className="onboard-logo">Zazi <span>Captioner</span></div>
           <div className="onboard-logo-sub">Know yourself · Know your image</div>
-          <div className="onboard-sub">
-            This tool is restricted to invited photographers only.
-            Enter the access code you received to continue.
-          </div>
+          <div className="onboard-sub">This tool is restricted to invited photographers only. Enter the access code you received to continue.</div>
           <div className="onboard-field">
             <label className="onboard-label">Access Code</label>
-            <input
-              className="onboard-input"
+            <input className="onboard-input"
               style={{ textAlign: "center", letterSpacing: ".2em", textTransform: "uppercase", fontSize: 16, borderColor: pinError ? "#e07070" : undefined }}
               placeholder="Enter access code…"
-              value={pinValue}
-              maxLength={20}
-              autoFocus
+              value={pinValue} maxLength={20} autoFocus
               onChange={e => { setPinValue(e.target.value.toUpperCase()); setPinError(false); }}
               onKeyDown={e => {
                 if (e.key === "Enter") {
@@ -1181,16 +1086,13 @@ export default function App() {
                 }
               }}
             />
-            {pinError && <div style={{ fontSize: 11, color: "#e07070", marginTop: -8 }}>Incorrect code — please check with the project coordinator</div>}
+            {pinError && <div style={{ fontSize: 11, color: "#e07070" }}>Incorrect code — please check with the project coordinator</div>}
           </div>
-          <button className="onboard-btn"
-            disabled={!pinValue.trim()}
+          <button className="onboard-btn" disabled={!pinValue.trim()}
             onClick={() => {
               if (pinValue.trim() === ACCESS_CODE) setScreen("onboard");
               else { setPinError(true); setPinValue(""); }
-            }}>
-            Enter →
-          </button>
+            }}>Enter →</button>
           <div style={{ textAlign: "center", fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em", userSelect: "none" }}>Zazi Captioner © Evans Akanyijuka</div>
         </div>
       </div>
@@ -1219,10 +1121,10 @@ export default function App() {
           </div>
           <div className="onboard-privacy">
             <div className="onboard-privacy-icon">🔒</div>
-            <div className="onboard-privacy-text">Your images never leave your device until you download the ZIP and upload it yourself to Google Drive. Nothing is uploaded automatically.</div>
+            <div className="onboard-privacy-text">Your images never leave your device until you download the ZIP. Nothing is uploaded automatically.</div>
           </div>
           <button className="onboard-btn" disabled={!photographerName.trim()} onClick={() => setScreen("upload")}>Continue →</button>
-          <div style={{ textAlign: 'center', fontSize: '9px', color: '#252320', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '.06em', userSelect: 'none' }}>Zazi Captioner © Evans Akanyijuka</div>
+          <div style={{ textAlign: "center", fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em", userSelect: "none" }}>Zazi Captioner © Evans Akanyijuka</div>
         </div>
       </div>
     </>
@@ -1232,16 +1134,13 @@ export default function App() {
   if (screen === "upload") return (
     <>
       <style>{CSS}</style>
-      <div
-        className={`upload-screen${drag ? " drag-over" : ""}`}
+      <div className={`upload-screen${drag ? " drag-over" : ""}`}
         onDragOver={e => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
         onDrop={e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
       >
-        <input ref={fileRef} type="file" multiple accept="image/*"
-          style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
-        <input ref={folderRef} type="file" multiple accept="image/*" webkitdirectory=""
-          style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
+        <input ref={fileRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
+        <input ref={folderRef} type="file" multiple accept="image/*" webkitdirectory="" style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
         <div className="upload-topbar">
           <button className="back-btn" onClick={() => setScreen("onboard")}>← Back</button>
           <div className="upload-topbar-name">
@@ -1261,12 +1160,94 @@ export default function App() {
             <button className="upload-btn upload-btn-folder" onClick={e => { e.stopPropagation(); folderRef.current.click(); }}>📁 Upload a folder</button>
           </div>
         </div>
-        <div className="watermark-footer">Zazi Captioner © Evans Akanyijuka · Afropean Intelligence Program</div>
-        {showEditName && (
-          <EditNameModal current={photographerName}
-            onSave={n => { setPhotographerName(n); setShowEditName(false); }}
-            onClose={() => setShowEditName(false)} />
-        )}
+        {showEditName && <EditNameModal current={photographerName} onSave={n => { setPhotographerName(n); setShowEditName(false); }} onClose={() => setShowEditName(false)} />}
+      </div>
+    </>
+  );
+
+  /* ── Location Setup Screen ── */
+  if (screen === "location") return (
+    <>
+      <style>{CSS}</style>
+      <div className="loc-setup">
+        <div className="loc-setup-topbar">
+          <button className="back-btn" onClick={() => setScreen("upload")}>← Back</button>
+          <div style={{ fontSize: 12, color: "#504840" }}>{images.length} images ready</div>
+        </div>
+        <div className="loc-setup-body">
+          <div className="loc-setup-card">
+            <div className="loc-setup-title">📍 Where were these photos taken?</div>
+            <div className="loc-setup-sub">Set the location once — it will be applied to all your images automatically. You can still change individual images later.</div>
+            <LocationSection
+              locState={globalLocState}
+              setLocState={setGlobalLocState}
+              locLocked={false}
+              setLocLocked={() => {}}
+              accent="#e8a84c"
+            />
+            <div className="loc-setup-hint">
+              💡 After setting your location, the tool will automatically analyse each image using AI and suggest captions. You just review and correct.
+            </div>
+            <button className="loc-continue-btn"
+              disabled={!(globalLocState.country || (globalLocState.other_on && globalLocState.country_other))}
+              onClick={() => {
+                // Apply location to all images
+                const next = {};
+                images.forEach((_, i) => { next[i] = { ...globalLocState }; });
+                setLocStates(next);
+                setLocLocked(true);
+                // Run BLIP on all images
+                runBlipAll(images, globalLocState);
+                setScreen("blip");
+              }}>
+              Auto-caption {images.length} images →
+            </button>
+            <button className="loc-skip-btn" onClick={() => {
+              const next = {};
+              images.forEach((_, i) => { next[i] = { ...globalLocState }; });
+              setLocStates(next);
+              if (globalLocState.country || (globalLocState.other_on && globalLocState.country_other)) {
+                setLocLocked(true);
+                // Apply auto-fill without BLIP
+                const autoFill = getAutoFill(globalLocState);
+                setCaps(prev => {
+                  const next = {};
+                  images.forEach((_, i) => { next[i] = applyAutoFill(prev[i] || emptyState("street"), autoFill); });
+                  return next;
+                });
+              }
+              setScreen("caption");
+            }}>
+              Skip AI captioning — fill manually
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  /* ── BLIP Loading Screen ── */
+  if (screen === "blip") return (
+    <>
+      <style>{CSS}</style>
+      <div className="blip-screen">
+        <div style={{ fontSize: 40 }}>🤖</div>
+        <div className="blip-title">Analysing your images…</div>
+        <div className="blip-sub">
+          AI is generating caption suggestions for each photo.
+          This usually takes 2–3 seconds per image.
+        </div>
+        <div className="blip-progress-wrap">
+          <div className="blip-progress-bg">
+            <div className="blip-progress-fill" style={{ width: `${blipProgress}%` }} />
+          </div>
+          <div className="blip-count">{blipProgress}% — {Math.round(blipProgress / 100 * images.length)} / {images.length} images</div>
+          {blipCurrent && <div className="blip-current">{blipCurrent}</div>}
+        </div>
+        <button className="blip-skip-btn" onClick={() => { setBlipRunning(false); setScreen("caption"); }}>
+          Skip and caption manually
+        </button>
+        <div style={{ fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em" }}>Zazi Captioner © Evans Akanyijuka</div>
       </div>
     </>
   );
@@ -1287,19 +1268,18 @@ export default function App() {
           <button className="done-drive-btn" onClick={() => window.open(DRIVE_FOLDER_URL, "_blank")}>📁 Open Google Drive →</button>
           <button className="done-back-btn" onClick={() => setScreen("caption")}>← Back to captions</button>
         </div>
+        <div style={{ fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em", userSelect: "none", marginTop: 8 }}>Zazi Captioner © Evans Akanyijuka</div>
       </div>
     </>
   );
 
-  /* ── Caption screen ── */
+  /* ── Caption Screen ── */
   return (
     <>
       <style>{CSS}</style>
       <div className="app">
-        <input ref={addMoreRef} type="file" multiple accept="image/*"
-          style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
-        <input ref={addMoreFolderRef} type="file" multiple accept="image/*" webkitdirectory=""
-          style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
+        <input ref={addMoreRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
+        <input ref={addMoreFolderRef} type="file" multiple accept="image/*" webkitdirectory="" style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
 
         <header className="header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1321,7 +1301,25 @@ export default function App() {
           </div>
         </header>
 
+        {/* Batch bar — only shows when images are selected */}
+        {selected.size > 0 && (
+          <div className="batch-bar">
+            <span className="batch-count">{selected.size} selected</span>
+            <div className="batch-sep" />
+            <button className="batch-btn batch-btn-apply" onClick={applyToSelected}>
+              ✦ Apply current caption to {selected.size} images
+            </button>
+            <button className="batch-btn" onClick={() => {
+              const next = new Set();
+              images.forEach((_, i) => next.add(i));
+              setSelected(next);
+            }}>Select all</button>
+            <button className="batch-btn batch-btn-clear" onClick={() => setSelected(new Set())}>Clear</button>
+          </div>
+        )}
+
         <div className="body">
+          {/* Image panel */}
           <div className="img-panel">
             <div className="img-wrap">
               <img src={images[idx].url} alt={images[idx].name} className="main-img" />
@@ -1329,6 +1327,7 @@ export default function App() {
             <div className="img-footer">
               <span className="img-name">{images[idx].name}</span>
               <div className="img-actions">
+                <button className="copy-prev-btn" disabled={idx === 0} onClick={copyFromPrev} title="Copy caption from previous image">↑ Copy prev</button>
                 <button className="delete-btn" onClick={() => setDeleteTarget(idx)}>✕ Remove</button>
                 <div className="img-nav">
                   <button className="nav-btn" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>← Prev</button>
@@ -1339,6 +1338,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Form panel */}
           <div className="form-panel">
             <div className="ds-bar">
               <span className="ds-bar-label">Type:</span>
@@ -1350,7 +1350,7 @@ export default function App() {
             </div>
 
             <div className="form-scroll">
-              {/* Location — always first */}
+              {/* Location */}
               <LocationSection
                 locState={currentLocState}
                 setLocState={setCurrentLocState}
@@ -1358,10 +1358,34 @@ export default function App() {
                 setLocLocked={handleSetLocLocked}
                 accent={accent}
               />
-
               <hr className="divider" />
 
-              {/* Dataset-specific sections */}
+              {/* BLIP auto-caption field */}
+              <div className="blip-field">
+                <label className="blip-label">
+                  AI Caption Suggestion
+                  {state._blip_loading
+                    ? <span className="blip-loading-badge">analysing…</span>
+                    : state._blip
+                      ? <span className="blip-badge">AI generated · edit freely</span>
+                      : null
+                  }
+                </label>
+                <textarea className="blip-textarea" rows={2}
+                  placeholder="AI caption will appear here — or type your own description…"
+                  value={state._blip || ""}
+                  onChange={e => update("_blip", e.target.value)}
+                />
+                <button className="blip-rerun-btn" onClick={async () => {
+                  update("_blip_loading", true);
+                  const text = await runBlip(images[idx].file);
+                  update("_blip", text);
+                  update("_blip_loading", false);
+                }}>↻ Re-run AI</button>
+              </div>
+              <hr className="divider" />
+
+              {/* Dataset sections */}
               {ds.sections.map((section, i) => (
                 <div key={section.id}>
                   <ChipSection section={section} state={state} update={update} accent={accent} />
@@ -1382,13 +1406,26 @@ export default function App() {
           </div>
         </div>
 
+        {/* Thumbnail strip */}
         <div className="thumb-strip">
           {images.map((img, i) => (
             <div key={img.name + i} className="thumb-wrap">
-              <button className="thumb"
+              <button
+                className={`thumb${selected.has(i) ? " thumb-selected" : ""}`}
                 style={i === idx ? { borderColor: accent } : {}}
-                onClick={() => setIdx(i)} title={img.name}>
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+                    toggleSelect(i, e);
+                  } else {
+                    setIdx(i);
+                    setSelected(new Set());
+                  }
+                }}
+                onContextMenu={e => { e.preventDefault(); toggleSelect(i, e); }}
+                title={`${img.name} — Ctrl/Cmd+click to select`}
+              >
                 <img src={img.url} alt="" />
+                {(caps[i]?._blip_loading) && <div className="thumb-loading">…</div>}
               </button>
               {isDone(caps[i], locStates[i]) && (
                 <span className="done-dot" style={{ background: isFullyDone(caps[i], locStates[i]) ? '#5aaa7a' : '#e8a84c' }}>
@@ -1402,13 +1439,13 @@ export default function App() {
           <button className="thumb-add" title="Add a folder" onClick={() => addMoreFolderRef.current.click()}>📁</button>
         </div>
 
+        <div className="watermark-footer">Zazi Captioner © Evans Akanyijuka · Afropean Intelligence Program</div>
+
         {showModal && (
-          <DownloadModal
-            images={images} caps={caps} locStates={locStates}
+          <DownloadModal images={images} caps={caps} locStates={locStates}
             photographerName={photographerName}
             onClose={() => setShowModal(false)}
-            onDone={() => { setShowModal(false); setScreen("done"); }}
-          />
+            onDone={() => { setShowModal(false); setScreen("done"); }} />
         )}
 
         {deleteTarget !== null && (
@@ -1426,7 +1463,6 @@ export default function App() {
           </div>
         )}
 
-        <div className="watermark-footer">Zazi Captioner © Evans Akanyijuka · Afropean Intelligence Program</div>
         {showEditName && (
           <EditNameModal current={photographerName}
             onSave={n => { setPhotographerName(n); setShowEditName(false); }}
