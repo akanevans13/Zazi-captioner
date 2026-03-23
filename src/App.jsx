@@ -698,6 +698,14 @@ const CSS = `
   .done-back-btn:hover { border-color: #504840; color: #e8dfd4; }
 
   /* ── Watermark ── */
+
+  .api-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: flex; align-items: center; justify-content: center; z-index: 300; font-family: 'Syne', sans-serif; }
+  .api-modal { background: #131110; border: 1px solid #1e1c1a; border-radius: 12px; padding: 28px; width: 380px; display: flex; flex-direction: column; gap: 14px; }
+  .api-modal-title { font-size: 16px; font-weight: 800; color: #e8dfd4; }
+  .api-modal-sub { font-size: 11px; color: #504840; line-height: 1.7; }
+  .save-badge { font-size: 10px; color: #5aaa7a; padding: 3px 8px; border: 1px solid rgba(90,170,122,.3); border-radius: 20px; background: rgba(90,170,122,.08); white-space: nowrap; }
+  .save-badge.saving { color: #e8a84c; border-color: rgba(232,168,76,.3); background: rgba(232,168,76,.08); }
+
   .watermark-footer { text-align: center; padding: 5px 0; font-size: 9px; color: #1e1c1a; font-family: 'JetBrains Mono', monospace; letter-spacing: .06em; border-top: 1px solid #131110; background: #0a0909; flex-shrink: 0; user-select: none; pointer-events: none; }
 `;
 
@@ -979,6 +987,38 @@ export default function App() {
   const [blipRunning, setBlipRunning] = useState(false);
   const [blipProgress, setBlipProgress] = useState(0);
   const [blipCurrent, setBlipCurrent] = useState("");
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [newApiKey, setNewApiKey] = useState("");
+  const [saveStatus, setSaveStatus] = useState(""); // "saved" | "saving" | ""
+
+  // ── Auto-save to localStorage ──
+  const saveProgress = (capsData, locData, name, note) => {
+    try {
+      setSaveStatus("saving");
+      // Save captions without image files (can't serialize File objects)
+      const saveable = {
+        caps: capsData || caps,
+        locStates: locData || locStates,
+        photographerName: name || photographerName,
+        photographerNote: note || photographerNote,
+        savedAt: new Date().toISOString(),
+        imageNames: images.map(i => i.name),
+      };
+      localStorage.setItem("zazi_progress", JSON.stringify(saveable));
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus(""), 2000);
+    } catch (e) {
+      console.error("Save failed:", e);
+      setSaveStatus("");
+    }
+  };
+
+  // Auto-save whenever caps or locStates change
+  const autoSaveRef = useRef(null);
+  const triggerAutoSave = () => {
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    autoSaveRef.current = setTimeout(() => saveProgress(), 1500);
+  };
   const fileRef = useRef();
   const folderRef = useRef();
   const addMoreRef = useRef();
@@ -1139,8 +1179,10 @@ export default function App() {
   const state = caps[idx] || emptyState("street");
   const accent = DATASETS[state._dataset]?.color || "#e8a84c";
   const ds = DATASETS[state._dataset];
-  const update = (field, val) =>
+  const update = (field, val) => {
     setCaps(p => ({ ...p, [idx]: { ...(p[idx] || emptyState("street")), [field]: val } }));
+    triggerAutoSave();
+  };
   const setDataset = (dsKey) =>
     setCaps(p => ({ ...p, [idx]: emptyState(dsKey) }));
 
@@ -1208,6 +1250,40 @@ export default function App() {
             <div className="onboard-privacy-text">Your images never leave your device until you download the ZIP. Nothing is uploaded automatically.</div>
           </div>
           <button className="onboard-btn" disabled={!photographerName.trim()} onClick={() => setScreen("upload")}>Continue →</button>
+
+          {/* Restore saved progress */}
+          {(() => {
+            try {
+              const saved = JSON.parse(localStorage.getItem("zazi_progress") || "{}");
+              if (saved.savedAt && saved.imageNames?.length > 0) {
+                return (
+                  <div style={{ background: "#0f0e0e", border: "1px solid #e8a84c22", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ fontSize: 11, color: "#e8a84c", fontWeight: 700 }}>↩ Saved session found</div>
+                    <div style={{ fontSize: 10, color: "#504840", lineHeight: 1.6 }}>
+                      {saved.imageNames.length} images · {saved.photographerName} · saved {new Date(saved.savedAt).toLocaleString()}
+                    </div>
+                    <button style={{ padding: "6px 12px", background: "#e8a84c", border: "none", color: "#111", borderRadius: 6, fontFamily: "'Syne', sans-serif", fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+                      onClick={() => {
+                        setCaps(saved.caps || {});
+                        setLocStates(saved.locStates || {});
+                        if (saved.photographerName) setPhotographerName(saved.photographerName);
+                        if (saved.photographerNote) setPhotographerNote(saved.photographerNote);
+                        alert("Progress restored! Please re-upload your images to continue — your captions are saved.");
+                        setScreen("upload");
+                      }}>
+                      Restore this session
+                    </button>
+                    <button style={{ padding: "4px", background: "transparent", border: "none", color: "#403830", fontFamily: "'Syne', sans-serif", fontSize: 10, cursor: "pointer" }}
+                      onClick={() => { localStorage.removeItem("zazi_progress"); window.location.reload(); }}>
+                      Start fresh instead
+                    </button>
+                  </div>
+                );
+              }
+            } catch {}
+            return null;
+          })()}
+
           <div style={{ textAlign: "center", fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em", userSelect: "none" }}>Zazi Captioner © Evans Akanyijuka</div>
         </div>
       </div>
@@ -1409,6 +1485,9 @@ export default function App() {
               📷 <span>{photographerName}</span>
               <span className="photographer-tag-edit">✎</span>
             </div>
+            {saveStatus && <span className={`save-badge${saveStatus === "saving" ? " saving" : ""}`}>{saveStatus === "saving" ? "Saving…" : "✓ Saved"}</span>}
+            <button className="batch-btn" onClick={() => { saveProgress(); }} title="Save progress">💾 Save</button>
+            <button className="batch-btn" onClick={() => { setNewApiKey(geminiKey); setShowApiKeyModal(true); }} title="Change API key">🔑 API Key</button>
             <button className="dl-btn" onClick={() => setShowModal(true)}>Download ZIP ↓</button>
           </div>
         </header>
@@ -1584,6 +1663,33 @@ export default function App() {
           <EditNameModal current={photographerName}
             onSave={n => { setPhotographerName(n); setShowEditName(false); }}
             onClose={() => setShowEditName(false)} />
+        )}
+
+        {/* API Key Modal */}
+        {showApiKeyModal && (
+          <div className="api-modal-overlay">
+            <div className="api-modal">
+              <div className="api-modal-title">🔑 Update API Key</div>
+              <div className="api-modal-sub">
+                Paste your new Gemini API key below. Get a free key at{" "}
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: "#e8a84c" }}>aistudio.google.com</a>
+              </div>
+              <input className="onboard-input"
+                placeholder="AIza…"
+                value={newApiKey}
+                onChange={e => setNewApiKey(e.target.value)}
+                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}
+                autoFocus
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="edit-cancel" onClick={() => setShowApiKeyModal(false)}>Cancel</button>
+                <button className="edit-save" disabled={!newApiKey.trim()}
+                  onClick={() => { setGeminiKey(newApiKey.trim()); setShowApiKeyModal(false); }}>
+                  Update key
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>
