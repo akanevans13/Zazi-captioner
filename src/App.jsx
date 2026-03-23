@@ -2,8 +2,12 @@ import { useState, useCallback, useRef } from "react";
 
 const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1PPUr-BeT1e4KrpLdfcfqXB2oFjQiCnqc?usp=drive_link";
 const ACCESS_CODE = "ZAZI2025"; // PIN protected
-const HF_API_URL = "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-large";
-const HF_TOKEN = ""; // Optional: add your Hugging Face token for faster responses
+/* ─────────────────────────────────────────
+   GEMINI API CONFIG
+   Photographer gets a free key from:
+   https://aistudio.google.com/app/apikey
+──────────────────────────────────────── */
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 /* ─────────────────────────────────────────
    LOCATION AUTO-FILL DEFAULTS
@@ -339,24 +343,43 @@ const isFullyDone = (state, locState) => {
 };
 
 /* ─────────────────────────────────────────
-   BLIP API CALL
+   GEMINI VISION API CALL
+   Converts image to base64 and sends to
+   Gemini 1.5 Flash for captioning
 ──────────────────────────────────────── */
-const runBlip = async (file) => {
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result.split(",")[1]);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+const runGemini = async (file, apiKey, locationContext) => {
   try {
-    const headers = { "Content-Type": file.type };
-    if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
-    const res = await fetch(HF_API_URL, {
-      method: "POST",
-      headers,
-      body: file,
-    });
-    if (!res.ok) throw new Error(`BLIP error: ${res.status}`);
+    const base64 = await fileToBase64(file);
+    const locHint = locationContext ? `This photo was taken in ${locationContext}. ` : "";
+    const prompt = `${locHint}Describe this photograph in detail for AI training. Focus on: what is happening in the scene, the type of environment, architectural elements if present, people and their activities, lighting conditions, and the overall mood. Be specific and factual. Keep it under 30 words.`;
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: file.type, data: base64 } },
+              { text: prompt }
+            ]
+          }]
+        })
+      }
+    );
+    if (!res.ok) throw new Error(`Gemini error: ${res.status}`);
     const data = await res.json();
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      return data[0].generated_text;
-    }
-    return "";
-  } catch {
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+  } catch (e) {
+    console.error("Gemini error:", e);
     return "";
   }
 };
@@ -893,6 +916,7 @@ function EditNameModal({ current, onSave, onClose }) {
 ──────────────────────────────────────── */
 export default function App() {
   const [screen, setScreen]     = useState("pin");
+  const [geminiKey, setGeminiKey] = useState("");
   const [pinValue, setPinValue] = useState("");
   const [pinError, setPinError] = useState(false);
   const [photographerName, setPhotographerName] = useState("");
@@ -927,18 +951,24 @@ export default function App() {
   }, []);
 
   /* ── Run BLIP on all images ── */
-  const runBlipAll = async (imgs, locState) => {
+  const runGeminiAll = async (imgs, locState, apiKey) => {
     setBlipRunning(true);
     setBlipProgress(0);
     const autoFill = getAutoFill(locState);
+    const locContext = [
+      locState.other_on ? locState.country_other : locState.country,
+      locState.other_on ? locState.city_other    : locState.city,
+      locState.other_on ? locState.region_other  : locState.region,
+    ].filter(Boolean).join(", ");
+
     for (let i = 0; i < imgs.length; i++) {
       setBlipCurrent(imgs[i].name);
       setBlipProgress(Math.round((i / imgs.length) * 100));
-      const blipText = await runBlip(imgs[i].file);
+      const geminiText = await runGemini(imgs[i].file, apiKey, locContext);
       setCaps(prev => {
         const existing = prev[i] || emptyState("street");
         const withAutoFill = applyAutoFill(existing, autoFill);
-        return { ...prev, [i]: { ...withAutoFill, _blip: blipText, _blip_loading: false } };
+        return { ...prev, [i]: { ...withAutoFill, _blip: geminiText, _blip_loading: false } };
       });
       setLocStates(prev => ({ ...prev, [i]: locState }));
     }
@@ -1186,21 +1216,49 @@ export default function App() {
               accent="#e8a84c"
             />
             <div className="loc-setup-hint">
-              💡 After setting your location, the tool will automatically analyse each image using AI and suggest captions. You just review and correct.
+              💡 After setting your location, the tool will automatically analyse each image using Gemini AI and suggest captions. You just review and correct.
             </div>
+
+            {/* Gemini API Key field */}
+            <div style={{ background: "#0f0e0e", border: "1px solid #1e1c1a", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#e8dfd4" }}>🤖 Optional — Speed up your captioning with AI</div>
+              <div style={{ fontSize: 11, color: "#504840", lineHeight: 1.7 }}>
+                AI will suggest a caption for each photo — you just review and correct. To enable it, get a free Google API key:
+                ① Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: "#e8a84c" }}>aistudio.google.com</a> →
+                ② Sign in with Google →
+                ③ Click <strong style={{ color: "#e8dfd4" }}>"Create API key"</strong> → paste it below
+              </div>
+              <input className="onboard-input"
+                placeholder="Paste API key here — or leave blank to caption manually"
+                value={geminiKey}
+                onChange={e => setGeminiKey(e.target.value)}
+                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
+              />
+              <div style={{ fontSize: 10, color: "#2c2820" }}>🔒 Your key goes directly to Google and is never stored by Zazi Captioner.</div>
+            </div>
+
             <button className="loc-continue-btn"
               disabled={!(globalLocState.country || (globalLocState.other_on && globalLocState.country_other))}
               onClick={() => {
-                // Apply location to all images
                 const next = {};
                 images.forEach((_, i) => { next[i] = { ...globalLocState }; });
                 setLocStates(next);
                 setLocLocked(true);
-                // Run BLIP on all images
-                runBlipAll(images, globalLocState);
-                setScreen("blip");
+                if (geminiKey.trim()) {
+                  runGeminiAll(images, globalLocState, geminiKey.trim());
+                  setScreen("blip");
+                } else {
+                  // No API key — just apply auto-fill and go to caption
+                  const autoFill = getAutoFill(globalLocState);
+                  setCaps(prev => {
+                    const next = {};
+                    images.forEach((_, i) => { next[i] = applyAutoFill(prev[i] || emptyState("street"), autoFill); });
+                    return next;
+                  });
+                  setScreen("caption");
+                }
               }}>
-              Auto-caption {images.length} images →
+              {geminiKey.trim() ? `Auto-caption ${images.length} images with AI →` : `Continue without AI →`}
             </button>
             <button className="loc-skip-btn" onClick={() => {
               const next = {};
@@ -1232,10 +1290,10 @@ export default function App() {
       <style>{CSS}</style>
       <div className="blip-screen">
         <div style={{ fontSize: 40 }}>🤖</div>
-        <div className="blip-title">Analysing your images…</div>
+        <div className="blip-title">Gemini is analysing your images…</div>
         <div className="blip-sub">
-          AI is generating caption suggestions for each photo.
-          This usually takes 2–3 seconds per image.
+          Gemini AI is generating caption suggestions for each photo.
+          This takes about 2–3 seconds per image. The captions will be location-aware.
         </div>
         <div className="blip-progress-wrap">
           <div className="blip-progress-bg">
@@ -1363,11 +1421,11 @@ export default function App() {
               {/* BLIP auto-caption field */}
               <div className="blip-field">
                 <label className="blip-label">
-                  AI Caption Suggestion
+                  Gemini Caption Suggestion
                   {state._blip_loading
                     ? <span className="blip-loading-badge">analysing…</span>
                     : state._blip
-                      ? <span className="blip-badge">AI generated · edit freely</span>
+                      ? <span className="blip-badge">Gemini · edit freely</span>
                       : null
                   }
                 </label>
@@ -1378,7 +1436,12 @@ export default function App() {
                 />
                 <button className="blip-rerun-btn" onClick={async () => {
                   update("_blip_loading", true);
-                  const text = await runBlip(images[idx].file);
+                  const locContext = [
+                    currentLocState.other_on ? currentLocState.country_other : currentLocState.country,
+                    currentLocState.other_on ? currentLocState.city_other    : currentLocState.city,
+                    currentLocState.other_on ? currentLocState.region_other  : currentLocState.region,
+                  ].filter(Boolean).join(", ");
+                  const text = await runGemini(images[idx].file, geminiKey, locContext);
                   update("_blip", text);
                   update("_blip_loading", false);
                 }}>↻ Re-run AI</button>
