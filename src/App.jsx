@@ -375,7 +375,7 @@ const runGemini = async (file, apiKey, locationContext) => {
     // Force correct mime type
     const mimeType = file.type || "image/jpeg";
     const locHint = locationContext ? `This photo was taken in ${locationContext}. ` : "";
-    const prompt = `${locHint}Look at this specific photograph and describe exactly what you see. Do not use categories or labels. Write what you actually observe: what is in the foreground, what is happening, what the environment looks like, what the light is doing, what textures or colours stand out, what the mood feels like. Be specific to this exact image. Write 30 to 40 words of precise observation. Every image is different — only describe what is in front of you.`;
+    const prompt = `${locHint}You are describing this photograph for an AI training dataset. Look carefully and write a detailed, vivid description of exactly what is happening in this specific image. Include: who is in the image and what they are doing, what they are wearing, the setting and environment in detail, the lighting and atmosphere, any architectural or natural elements visible, textures, colours, and the emotional tone. Be specific and observational — do not use vague terms. Write 40 to 60 words. This is a unique image — describe only what you actually see in it.`;
 
     const body = {
       contents: [{
