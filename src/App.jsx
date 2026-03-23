@@ -266,7 +266,7 @@ const emptyLocState = () => ({
 
 const emptyState = (dsKey) => {
   const ds = DATASETS[dsKey];
-  const obj = { _dataset: dsKey, _blip: "", _blip_loading: false };
+  const obj = { _dataset: dsKey, _gemini: "", _gemini_loading: false };
   ds.sections.forEach(s => {
     obj[s.id] = s.multi ? [] : "";
     obj[`${s.id}_other`] = "";
@@ -307,7 +307,7 @@ const assembleCaption = (state, locState) => {
   if (region) parts.push(region);
 
   // Gemini free caption is the PRIMARY description — comes first
-  if (state._blip?.trim()) parts.push(state._blip.trim());
+  if (state._gemini?.trim()) parts.push(state._gemini.trim());
 
   // Chips are secondary enrichment — add anything selected
   ds.sections.forEach(s => {
@@ -333,7 +333,7 @@ const isDone = (state, locState) => {
     const other = state[`${s.id}_other_on`] && state[`${s.id}_other`]?.trim();
     if (other || (s.multi ? val?.length > 0 : !!val)) filled++;
   });
-  if (state._blip?.trim()) filled++;
+  if (state._gemini?.trim()) filled++;
   if (state.notes?.trim()) filled++;
   return filled >= 1;
 };
@@ -411,12 +411,16 @@ const runGemini = async (file, apiKey, locationContext) => {
     }
 
     const data = await res.json();
+    if (data?.error) {
+      console.error("Gemini API error:", data.error);
+      return `[Gemini error: ${data.error.message}]`;
+    }
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     console.log("Gemini response for", file.name, ":", text);
-    return text || "";
+    return text || "[No caption returned — check API key or try Re-run AI]";
   } catch (e) {
     console.error("Gemini error:", e);
-    return "";
+    return "[Error connecting to Gemini — check your API key]";
   }
 };
 
@@ -1000,7 +1004,7 @@ export default function App() {
     for (let i = 0; i < imgs.length; i++) {
       setBlipCurrent(imgs[i].name);
       setBlipProgress(Math.round((i / imgs.length) * 100));
-      if (i > 0) await new Promise(r => setTimeout(r, 1000));
+      if (i > 0) await new Promise(r => setTimeout(r, 2000));
 
       // Gemini runs with NO pre-filled state — clean slate
       // It only sees the image and the location context
@@ -1012,8 +1016,8 @@ export default function App() {
           // Start from completely empty state — no chips pre-selected
           ...emptyState("street"),
           // Only Gemini caption + location — photographer adds chips themselves
-          _blip: geminiText,
-          _blip_loading: false
+          _gemini: geminiText,
+          _gemini_loading: false
         }
       }));
       setLocStates(prev => ({ ...prev, [i]: locState }));
@@ -1468,28 +1472,28 @@ export default function App() {
               <div className="blip-field">
                 <label className="blip-label">
                   AI Description — edit freely
-                  {state._blip_loading
+                  {state._gemini_loading
                     ? <span className="blip-loading-badge">analysing…</span>
-                    : state._blip
+                    : state._gemini
                       ? <span className="blip-badge">Gemini · free description · edit freely</span>
                       : null
                   }
                 </label>
                 <textarea className="blip-textarea" rows={3}
                   placeholder="AI will describe exactly what it sees in your photo — you can edit or correct this…"
-                  value={state._blip || ""}
-                  onChange={e => update("_blip", e.target.value)}
+                  value={state._gemini || ""}
+                  onChange={e => update("_gemini", e.target.value)}
                 />
                 <button className="blip-rerun-btn" onClick={async () => {
-                  update("_blip_loading", true);
+                  update("_gemini_loading", true);
                   const locContext = [
                     currentLocState.other_on ? currentLocState.country_other : currentLocState.country,
                     currentLocState.other_on ? currentLocState.city_other    : currentLocState.city,
                     currentLocState.other_on ? currentLocState.region_other  : currentLocState.region,
                   ].filter(Boolean).join(", ");
                   const text = await runGemini(images[idx].file, geminiKey, locContext);
-                  update("_blip", text);
-                  update("_blip_loading", false);
+                  update("_gemini", text);
+                  update("_gemini_loading", false);
                 }}>↻ Re-run AI</button>
               </div>
               <hr className="divider" />
@@ -1534,7 +1538,7 @@ export default function App() {
                 title={`${img.name} — Ctrl/Cmd+click to select`}
               >
                 <img src={img.url} alt="" />
-                {(caps[i]?._blip_loading) && <div className="thumb-loading">…</div>}
+                {(caps[i]?._gemini_loading) && <div className="thumb-loading">…</div>}
               </button>
               {isDone(caps[i], locStates[i]) && (
                 <span className="done-dot" style={{ background: isFullyDone(caps[i], locStates[i]) ? '#5aaa7a' : '#e8a84c' }}>
