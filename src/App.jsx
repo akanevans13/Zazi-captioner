@@ -1176,7 +1176,7 @@ export default function App() {
     }
   };
 
-  const state = caps[idx] || emptyState("street");
+  const state = caps[idx] || emptyState("street"); // street is default — photographer should select correct type
   const accent = DATASETS[state._dataset]?.color || "#e8a84c";
   const ds = DATASETS[state._dataset];
   const update = (field, val) => {
@@ -1184,7 +1184,15 @@ export default function App() {
     triggerAutoSave();
   };
   const setDataset = (dsKey) =>
-    setCaps(p => ({ ...p, [idx]: emptyState(dsKey) }));
+    setCaps(p => ({
+      ...p,
+      [idx]: {
+        ...emptyState(dsKey),
+        // Preserve Gemini caption when switching dataset type
+        _gemini: p[idx]?._gemini || "",
+        _gemini_loading: false,
+      }
+    }));
 
   const doneCount = images.filter((_, i) => isDone(caps[i], locStates[i])).length;
   const pct = images.length ? (doneCount / images.length) * 100 : 0;
