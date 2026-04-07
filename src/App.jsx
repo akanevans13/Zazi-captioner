@@ -429,6 +429,36 @@ const runGemini = async (file, apiKey, locationContext) => {
 };
 
 /* ─────────────────────────────────────────
+   CLAUDE EXPANSION via secure backend
+   Your Claude key stays on the server
+──────────────────────────────────────── */
+const expandWithClaude = async (geminiCaption, file, locationContext) => {
+  try {
+    const base64 = await fileToBase64(file);
+    if (!base64 || base64.length < 100) return geminiCaption;
+
+    const res = await fetch("/api/expand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        geminiCaption,
+        imageBase64: base64,
+        mimeType: file.type || "image/jpeg",
+        locationContext,
+        accessCode: ACCESS_CODE,
+      })
+    });
+
+    if (!res.ok) return geminiCaption;
+    const data = await res.json();
+    return data.caption || geminiCaption;
+  } catch (e) {
+    console.error("Claude expansion error:", e);
+    return geminiCaption;
+  }
+};
+
+/* ─────────────────────────────────────────
    CSS
 ──────────────────────────────────────── */
 const CSS = `
