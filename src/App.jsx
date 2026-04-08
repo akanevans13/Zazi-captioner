@@ -392,7 +392,11 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
 const expandWithClaude = async (geminiCaption, file, locationContext) => {
   try {
     const base64 = await fileToBase64(file);
-    if (!base64 || base64.length < 100) return geminiCaption;
+    if (!base64 || base64.length < 100) {
+      console.error("expandWithClaude: base64 too short", base64?.length);
+      return geminiCaption;
+    }
+    console.log("expandWithClaude: sending to /api/expand, base64 length:", base64.length);
 
     const res = await fetch("/api/expand", {
       method: "POST",
@@ -406,8 +410,14 @@ const expandWithClaude = async (geminiCaption, file, locationContext) => {
       })
     });
 
-    if (!res.ok) return geminiCaption;
+    console.log("expandWithClaude: response status:", res.status);
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("expandWithClaude: error response:", errText);
+      return geminiCaption;
+    }
     const data = await res.json();
+    console.log("expandWithClaude: received caption:", data.caption?.slice(0, 80));
     return data.caption || geminiCaption;
   } catch (e) {
     console.error("Claude expansion error:", e);
