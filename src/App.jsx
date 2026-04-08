@@ -1612,8 +1612,11 @@ export default function App() {
                     currentLocState.other_on ? currentLocState.city_other    : currentLocState.city,
                     currentLocState.other_on ? currentLocState.region_other  : currentLocState.region,
                   ].filter(Boolean).join(", ");
-                  const text = await runGemini(images[idx].file, geminiKey, locContext);
-                  update("_gemini", text);
+                  // Step 1 — Gemini
+                  const geminiText = await runGemini(images[idx].file, geminiKey, locContext);
+                  // Step 2 — Claude expands
+                  const expandedText = await expandWithClaude(geminiText, images[idx].file, locContext);
+                  update("_gemini", expandedText || geminiText);
                   update("_gemini_loading", false);
                 }}>↻ Re-run AI</button>
               </div>
