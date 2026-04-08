@@ -118,7 +118,20 @@ const LOCATIONS = {
   "Uganda": {
     flag: "🇺🇬",
     cities: {
-      "Kampala": ["CBD","Kabalagala","Wandegeya","Makindye","Kawempe","Nakawa","Rubaga"],
+      "Kampala":    ["CBD / City Centre","Kabalagala","Wandegeya","Makindye","Kawempe","Nakawa","Rubaga","Ntinda","Bukoto","Kisementi","Kololo","Mulago","Bwaise","Katwe","Kireka","Nakulabye","Makerere","Ndeeba","Mengo","Naguru","Kireka","Bugolobi","Muyenga","Ggaba","Lungujja"],
+      "Entebbe":    ["Town Centre","Kiwafu","Kigungu","Abaita Ababiri","Kasanje","Nakiwogo","Entebbe Road"],
+      "Jinja":      ["Main Street","Walukuba","Mpumudde","Kimaka","Bugembe","Masese","Njeru"],
+      "Gulu":       ["Town Centre","Pece","Laroo","Bardege","Layibi","Lacor","Koro"],
+      "Mbarara":    ["Town Centre","Nyamitanga","Kakoba","Kamukuzi","Ruti","Biharwe"],
+      "Mbale":      ["Town Centre","Industrial Area","Namatala","Wanale","Bufumbo","Malukhu"],
+      "Lira":       ["Town Centre","Ojwina","Railway","Bar Dege","Adyel"],
+      "Masaka":     ["Town Centre","Nyendo","Kimaanya","Kimanya-Kyabakuza","Katwe-Butego"],
+      "Fort Portal": ["Town Centre","Buhinga","Karambi","Rwimi","Kichwamba"],
+      "Arua":       ["Town Centre","Oli River","Ediofe","Pajulu","Mvara"],
+      "Tororo":     ["Town Centre","Osukuru","Kirewa","Mella"],
+      "Kabale":     ["Town Centre","Labongo","Kitanga","Bubare"],
+      "Soroti":     ["Town Centre","Arapai","Gogonyo","Opiyai"],
+      "Hoima":      ["Town Centre","Busiisi","Kahoora","Mparo"],
     }
   },
   "Zimbabwe": {
