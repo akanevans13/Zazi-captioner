@@ -1004,6 +1004,7 @@ export default function App() {
   const runGeminiAll = async (imgs, locState, apiKey) => {
     setBlipRunning(true);
     setBlipProgress(0);
+    setScreen("blip");
 
     const locContext = [
       locState.other_on ? locState.country_other : locState.country,
@@ -1328,8 +1329,7 @@ export default function App() {
                 images.forEach((_, i) => { next[i] = { ...globalLocState }; });
                 setLocStates(next);
                 setLocLocked(true);
-                // Go straight to loading screen — Claude handles everything
-                setScreen("blip");
+                // Claude handles everything
                 runGeminiAll(images, globalLocState, "");
               }}>
               {`Caption ${images.length} images with AI assistance →`}
