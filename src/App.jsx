@@ -7,7 +7,7 @@ const ACCESS_CODE = "ZAZI2025"; // PIN protected
    Photographer gets a free key from:
    https://aistudio.google.com/app/apikey
 ──────────────────────────────────────── */
-const GEMINI_MODEL = "gemini-3-flash-preview";
+
 
 /* ─────────────────────────────────────────
    LOCATION AUTO-FILL DEFAULTS
@@ -363,81 +363,7 @@ const isFullyDone = (state, locState) => {
   return hasLoc && sectsDone;
 };
 
-/* ─────────────────────────────────────────
-   GEMINI VISION API CALL
-   Converts image to base64 and sends to
-   Gemini 1.5 Flash for captioning
-──────────────────────────────────────── */
-const fileToBase64 = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result.split(",")[1]);
-  reader.onerror = reject;
-  reader.readAsDataURL(file);
-});
 
-const runGemini = async (file, apiKey, locationContext) => {
-  try {
-    const base64 = await fileToBase64(file);
-
-    // Ensure we have actual image data
-    if (!base64 || base64.length < 100) {
-      console.error("Image base64 too short — file may not have loaded");
-      return "";
-    }
-
-    // Force correct mime type
-    const mimeType = file.type || "image/jpeg";
-    const locHint = locationContext ? `This photo was taken in ${locationContext}. ` : "";
-    const prompt = `${locHint}You are generating a training caption for a Stable Diffusion XL LoRA dataset. Look at this photograph and describe it as comma-separated visual attributes in this order: subject and clothing, action or pose, setting and environment, lighting quality, mood and atmosphere, visual style and composition, any culturally specific details. Be extremely specific — not "a man" but "a middle-aged man in a collarless white shirt". Never use racial descriptors. Write 40-60 words as comma-separated phrases only, no full sentences, no preamble.`;
-
-    const body = {
-      contents: [{
-        parts: [
-          {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64
-            }
-          },
-          { text: prompt }
-        ]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 500,
-        stopSequences: [],
-        candidateCount: 1,
-      }
-    };
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("Gemini API error:", res.status, err);
-      return "";
-    }
-
-    const data = await res.json();
-    if (data?.error) {
-      console.error("Gemini API error:", data.error);
-      return `[Gemini error: ${data.error.message}]`;
-    }
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    console.log("Gemini response for", file.name, ":", text);
-    return text || "[No caption returned — check API key or try Re-run AI]";
-  } catch (e) {
-    console.error("Gemini error:", e);
-    return "[Error connecting to Gemini — check your API key]";
-  }
-};
 
 /* ─────────────────────────────────────────
    CLAUDE EXPANSION via secure backend
@@ -1009,7 +935,6 @@ function EditNameModal({ current, onSave, onClose }) {
 ──────────────────────────────────────── */
 export default function App() {
   const [screen, setScreen]     = useState("pin");
-  const [geminiKey, setGeminiKey] = useState("");
   const [pinValue, setPinValue] = useState("");
   const [pinError, setPinError] = useState(false);
   const [photographerName, setPhotographerName] = useState("");
@@ -1393,25 +1318,7 @@ export default function App() {
               accent="#e8a84c"
             />
             <div className="loc-setup-hint">
-              💡 After setting your location, the tool will automatically analyse each image using Gemini AI and suggest captions. You just review and correct.
-            </div>
-
-            {/* Gemini API Key field */}
-            <div style={{ background: "#0f0e0e", border: "1px solid #1e1c1a", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#e8dfd4" }}>🤖 Optional — Speed up your captioning with AI</div>
-              <div style={{ fontSize: 11, color: "#504840", lineHeight: 1.7 }}>
-                AI will suggest a caption for each photo — you just review and correct. To enable it, get a free Google API key:
-                ① Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: "#e8a84c" }}>aistudio.google.com</a> →
-                ② Sign in with Google →
-                ③ Click <strong style={{ color: "#e8dfd4" }}>"Create API key"</strong> → paste it below
-              </div>
-              <input className="onboard-input"
-                placeholder="Paste API key here — or leave blank to caption manually"
-                value={geminiKey}
-                onChange={e => setGeminiKey(e.target.value)}
-                style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
-              />
-              <div style={{ fontSize: 10, color: "#2c2820" }}>🔒 Your key goes directly to Google and is never stored by Zazi Captioner.</div>
+              💡 After setting your location, Claude AI will analyse each image and generate detailed training captions. You just review and correct.
             </div>
 
             <button className="loc-continue-btn"
@@ -1421,21 +1328,11 @@ export default function App() {
                 images.forEach((_, i) => { next[i] = { ...globalLocState }; });
                 setLocStates(next);
                 setLocLocked(true);
-                if (geminiKey.trim()) {
-                  runGeminiAll(images, globalLocState, geminiKey.trim());
-                  setScreen("blip");
-                } else {
-                  // No API key — just apply auto-fill and go to caption
-                  const autoFill = getAutoFill(globalLocState);
-                  setCaps(prev => {
-                    const next = {};
-                    images.forEach((_, i) => { next[i] = applyAutoFill(prev[i] || emptyState("street"), autoFill); });
-                    return next;
-                  });
-                  setScreen("caption");
-                }
+                // Go straight to loading screen — Claude handles everything
+                setScreen("blip");
+                runGeminiAll(images, globalLocState, "");
               }}>
-              `Auto-caption ${images.length} images with Claude AI →`
+              {`Caption ${images.length} images with AI assistance →`}
             </button>
             <button className="loc-skip-btn" onClick={() => {
               const next = {};
@@ -1467,10 +1364,10 @@ export default function App() {
       <style>{CSS}</style>
       <div className="blip-screen">
         <div style={{ fontSize: 40 }}>🤖</div>
-        <div className="blip-title">Gemini is analysing your images…</div>
+        <div className="blip-title">AI is captioning your images…</div>
         <div className="blip-sub">
-          Gemini AI is generating caption suggestions for each photo.
-          This takes about 2–3 seconds per image. The captions will be location-aware.
+          Claude is analysing each photo and generating detailed, culturally aware captions.
+          This takes a few seconds per image — please keep this tab open.
         </div>
         <div className="blip-progress-wrap">
           <div className="blip-progress-bg">
@@ -1479,7 +1376,7 @@ export default function App() {
           <div className="blip-count">{blipProgress}% — {Math.round(blipProgress / 100 * images.length)} / {images.length} images</div>
           {blipCurrent && <div className="blip-current">{blipCurrent}</div>}
         </div>
-        <button className="blip-skip-btn" onClick={() => { setBlipRunning(false); setScreen("caption"); }}>
+        <button className="blip-skip-btn" onClick={() => { setScreen("caption"); }}>
           Skip and caption manually
         </button>
         <div style={{ fontSize: "9px", color: "#252320", fontFamily: "'JetBrains Mono', monospace", letterSpacing: ".06em" }}>Zazi Captioner © Evans Akanyijuka</div>
@@ -1534,7 +1431,6 @@ export default function App() {
             </div>
             {saveStatus && <span className={`save-badge${saveStatus === "saving" ? " saving" : ""}`}>{saveStatus === "saving" ? "Saving…" : "✓ Saved"}</span>}
             <button className="batch-btn" onClick={() => { saveProgress(); }} title="Save progress">💾 Save</button>
-            <button className="batch-btn" onClick={() => { setNewApiKey(geminiKey); setShowApiKeyModal(true); }} title="Change API key">🔑 API Key</button>
             <button className="dl-btn" onClick={() => setShowModal(true)}>Download ZIP ↓</button>
           </div>
         </header>
@@ -1605,7 +1501,7 @@ export default function App() {
                   {state._gemini_loading
                     ? <span className="blip-loading-badge">analysing…</span>
                     : state._gemini
-                      ? <span className="blip-badge">Gemini · free description · edit freely</span>
+                      ? <span className="blip-badge">Claude AI · edit freely</span>
                       : null
                   }
                 </label>
