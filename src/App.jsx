@@ -748,6 +748,12 @@ const CSS = `
   .save-badge { font-size: 10px; color: #5aaa7a; padding: 3px 8px; border: 1px solid rgba(90,170,122,.3); border-radius: 20px; background: rgba(90,170,122,.08); white-space: nowrap; }
   .save-badge.saving { color: #e8a84c; border-color: rgba(232,168,76,.3); background: rgba(232,168,76,.08); }
 
+  .new-batch-btn {
+    padding: 5px 12px; background: transparent; border: 1px solid #2a2825;
+    color: #504840; border-radius: 5px; font-family: 'Syne', sans-serif;
+    font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .new-batch-btn:hover { border-color: #e07070; color: #e07070; }
   .watermark-footer { text-align: center; padding: 5px 0; font-size: 9px; color: #1e1c1a; font-family: 'JetBrains Mono', monospace; letter-spacing: .06em; border-top: 1px solid #131110; background: #0a0909; flex-shrink: 0; user-select: none; pointer-events: none; }
 `;
 
@@ -1491,6 +1497,17 @@ export default function App() {
         <header className="header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button className="back-btn" onClick={() => setScreen("upload")}>← Add more</button>
+            <button className="new-batch-btn" onClick={() => {
+              if (window.confirm("Start a new batch? Your current images and captions will be cleared.")) {
+                setImages([]);
+                setCaps({});
+                setLocStates({});
+                setSelected(new Set());
+                setIdx(0);
+                setLocLocked(false);
+                setScreen("upload");
+              }
+            }}>↺ New batch</button>
             <span className="logo">Zazi <span>Captioner</span></span>
           </div>
           <div className="hdr-mid">
